@@ -41,6 +41,7 @@ namespace advancedRenamer
         private Button _loadTemplateButton;
         private Button _saveTemplateButton;
         private CheckBox _contextMenuCheckBox;
+        private CheckBox _autoNumberDuplicatesCheckBox;
         private Label _languageLabel;
         private ComboBox _languageComboBox;
         private Label _countLabel;
@@ -118,6 +119,7 @@ namespace advancedRenamer
             _loadTemplateButton = new Button { Text = TextOf("LoadTemplate"), AutoSize = true, Height = 28 };
             _saveTemplateButton = new Button { Text = TextOf("SaveTemplate"), AutoSize = true, Height = 28 };
             _contextMenuCheckBox = new CheckBox { Text = TextOf("AddToContextMenu"), AutoSize = true, Height = 28, Margin = new Padding(3, 6, 3, 3) };
+            _autoNumberDuplicatesCheckBox = new CheckBox { Text = TextOf("AutoNumberDuplicates"), AutoSize = true, Height = 28, Margin = new Padding(3, 6, 3, 3) };
             _languageLabel = new Label { Text = TextOf("LanguageShortLabel"), AutoSize = true, Height = 28, TextAlign = ContentAlignment.MiddleLeft, Margin = new Padding(3, 8, 3, 3) };
             _languageComboBox = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150, Height = 23, Margin = new Padding(3, 5, 3, 3) };
             _countLabel = new Label { Text = FormatItemCount(0), AutoSize = true, Height = 28, TextAlign = ContentAlignment.MiddleLeft, Margin = new Padding(3, 8, 3, 3) };
@@ -142,7 +144,7 @@ namespace advancedRenamer
             _fileOperationsGroup = CreateToolbarGroup(TextOf("FileOperationsGroupTitle"), _addButton, _simulateButton, _applyButton, _undoButton);
             _sortOperationsGroup = CreateToolbarGroup(TextOf("SortOperationsGroupTitle"), _previewSortButton, _applySortButton, _cancelSortButton, _loadSortTemplateButton, _saveSortTemplateButton);
             _templatesGroup = CreateToolbarGroup(TextOf("TemplatesGroupTitle"), _loadTemplateButton, _saveTemplateButton);
-            _settingsGroup = CreateToolbarGroup(TextOf("SettingsGroupTitle"), _contextMenuCheckBox, _languageLabel, _languageComboBox);
+            _settingsGroup = CreateToolbarGroup(TextOf("SettingsGroupTitle"), _contextMenuCheckBox, _autoNumberDuplicatesCheckBox, _languageLabel, _languageComboBox);
 
             toolbar.Controls.Add(_itemCountGroup, 0, 0);
             toolbar.Controls.Add(_fileOperationsGroup, 1, 0);
@@ -555,6 +557,7 @@ namespace advancedRenamer
             _loadTemplateButton.Text = TextOf("LoadTemplate");
             _saveTemplateButton.Text = TextOf("SaveTemplate");
             _contextMenuCheckBox.Text = TextOf("AddToContextMenu");
+            _autoNumberDuplicatesCheckBox.Text = TextOf("AutoNumberDuplicates");
             _languageLabel.Text = TextOf("LanguageShortLabel");
             _countLabel.Text = FormatItemCount(_entries.Count);
 
@@ -1207,6 +1210,7 @@ namespace advancedRenamer
             string staticScript = _staticScriptTextBox.Text;
             string dynamicScript = _dynamicScriptTextBox.Text;
             var proposedTargets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            bool autoNumberDuplicates = _autoNumberDuplicatesCheckBox.Checked;
             Engine engine;
 
             try
@@ -1249,18 +1253,23 @@ namespace advancedRenamer
                     else
                     {
                         string targetPath = Path.Combine(entry.DirectoryPath, sanitized);
-                        if (!proposedTargets.Add(targetPath))
+                        if (proposedTargets.Contains(targetPath) || PathExists(targetPath))
                         {
-                            entry.NewName = sanitized;
-                            entry.Status = "Invalid: duplicate target";
-                        }
-                        else if (PathExists(targetPath))
-                        {
-                            entry.NewName = sanitized;
-                            entry.Status = "Invalid: target exists";
+                            if (autoNumberDuplicates && TryCreateUniqueNumberedName(entry, sanitized, proposedTargets, out string uniqueName, out string uniquePath))
+                            {
+                                proposedTargets.Add(uniquePath);
+                                entry.NewName = uniqueName;
+                                entry.Status = "Ready";
+                            }
+                            else
+                            {
+                                entry.NewName = sanitized;
+                                entry.Status = proposedTargets.Contains(targetPath) ? "Invalid: duplicate target" : "Invalid: target exists";
+                            }
                         }
                         else
                         {
+                            proposedTargets.Add(targetPath);
                             entry.NewName = sanitized;
                             entry.Status = "Ready";
                         }
@@ -1284,6 +1293,28 @@ namespace advancedRenamer
             {
                 MessageBox.Show(this, TextOf("SimulationComplete"), AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
+        }
+
+        private static bool TryCreateUniqueNumberedName(FileEntry entry, string originalName, HashSet<string> proposedTargets, out string uniqueName, out string uniquePath)
+        {
+            string baseName = entry.IsDirectory ? originalName : Path.GetFileNameWithoutExtension(originalName);
+            string extension = entry.IsDirectory ? string.Empty : Path.GetExtension(originalName);
+
+            for (int number = 2; number < 10000; number++)
+            {
+                string candidateName = baseName + " (" + number.ToString(CultureInfo.InvariantCulture) + ")" + extension;
+                string candidatePath = Path.Combine(entry.DirectoryPath, candidateName);
+                if (!proposedTargets.Contains(candidatePath) && !PathExists(candidatePath))
+                {
+                    uniqueName = candidateName;
+                    uniquePath = candidatePath;
+                    return true;
+                }
+            }
+
+            uniqueName = string.Empty;
+            uniquePath = string.Empty;
+            return false;
         }
 
         private void MarkAllEntriesAsScriptError(string status)

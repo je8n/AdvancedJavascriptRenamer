@@ -170,6 +170,8 @@ return index.toString().padStart(3, "0") + "_" + name + ext;
 
 Boş veya geçersiz sonuçlar uygulanmaz. Aynı hedef ad veya mevcut hedef dosya/klasör varsa satır `Invalid`/`Skipped` durumuna düşer.
 
+`Ayarlar` altında `Aynı dosyaları yeniden adlandır` işaretliyse, mevcut hedef ad veya listedeki başka bir hedefle çakışan adlar otomatik numaralandırılır. Numara uzantıdan önce eklenir: `dosya (2).jpg`, `dosya (3).jpg`.
+
 ## Kullanılabilir JS Değişkenleri
 
 Dosya veya klasör başına Sort ve Dynamic betikleri içinde kullanılabilir:

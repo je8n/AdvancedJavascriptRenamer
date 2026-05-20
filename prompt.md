@@ -34,7 +34,7 @@ UI requirements:
   - file operations group: `Add Files/Folders`, `Simulate`, `Apply Changes`, `Undo Last`
   - sort operations group: `Preview`, `Apply`, `Cancel`, `Load`, `Save`
   - templates group: `Load`, `Save`
-  - settings group: `Add to Context Menu` CheckBox and language selector
+  - settings group: `Add to Context Menu` CheckBox, `Rename duplicate targets` CheckBox, and language selector
 - The main grid must be a `ListView` in `Details` view with these columns:
   - Current Name
   - New Name
@@ -148,8 +148,9 @@ Rename safety:
 - Sanitize invalid Windows filename characters from JS output:
   - `\ / : * ? " < > |`
 - Do not apply empty results.
-- Mark duplicate target names as invalid.
-- Mark existing target files/folders as invalid/skipped.
+- Mark duplicate target names as invalid unless `Rename duplicate targets` is checked.
+- Mark existing target files/folders as invalid/skipped unless `Rename duplicate targets` is checked.
+- If `Rename duplicate targets` is checked, duplicate targets and existing targets must be automatically renamed by appending ` (2)`, ` (3)`, etc. before the extension.
 - Simulate must not change the file system.
 - Ask for confirmation before Apply.
 - Mark successfully applied rows as `Renamed`.

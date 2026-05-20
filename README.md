@@ -170,6 +170,8 @@ return index.toString().padStart(3, "0") + "_" + name + ext;
 
 Empty or invalid results are not applied. Duplicate targets and existing target files/folders are marked as `Invalid` or `Skipped`.
 
+When `Rename duplicate targets` is checked under `Settings`, names that collide with an existing target or another proposed target are numbered automatically before the extension: `file (2).jpg`, `file (3).jpg`.
+
 ## Available JS Variables
 
 Available inside the per-file or per-folder Sort and Dynamic scripts:
