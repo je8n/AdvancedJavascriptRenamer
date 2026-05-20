@@ -32,6 +32,7 @@ project.assets.json
 *.log
 advancedRenamer-error.log
 script-templates.json
+language-settings.json
 
 # Test and coverage outputs
 TestResults/

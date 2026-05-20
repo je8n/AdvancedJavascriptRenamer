@@ -7,7 +7,7 @@ namespace advancedRenamer
 {
     public static class RegistryHelper
     {
-        private const string MenuText = "Open with Advanced Javascript Renamer";
+        private const string DefaultMenuText = "Open with Advanced Javascript Renamer";
         private const string DirectoryShellKey = @"Software\Classes\Directory\shell\advancedRenamer";
         private const string BackgroundShellKey = @"Software\Classes\Directory\Background\shell\advancedRenamer";
 
@@ -16,16 +16,17 @@ namespace advancedRenamer
             return KeyExists(DirectoryShellKey) && KeyExists(BackgroundShellKey);
         }
 
-        public static void InstallContextMenu()
+        public static void InstallContextMenu(string menuText = null)
         {
             string exePath = Process.GetCurrentProcess().MainModule.FileName;
             if (string.IsNullOrWhiteSpace(exePath) || !File.Exists(exePath))
             {
-                throw new InvalidOperationException("Advanced Javascript Renamer executable yolu bulunamadı.");
+                throw new InvalidOperationException(LanguageManager.T("ExePathNotFound"));
             }
 
-            WriteMenuKey(DirectoryShellKey, exePath, "\"%1\"");
-            WriteMenuKey(BackgroundShellKey, exePath, "\"%V\"");
+            string safeMenuText = string.IsNullOrWhiteSpace(menuText) ? DefaultMenuText : menuText;
+            WriteMenuKey(DirectoryShellKey, exePath, "\"%1\"", safeMenuText);
+            WriteMenuKey(BackgroundShellKey, exePath, "\"%V\"", safeMenuText);
         }
 
         public static void RemoveContextMenu()
@@ -42,17 +43,17 @@ namespace advancedRenamer
             }
         }
 
-        private static void WriteMenuKey(string shellKeyPath, string exePath, string argumentToken)
+        private static void WriteMenuKey(string shellKeyPath, string exePath, string argumentToken, string menuText)
         {
             using (RegistryKey shellKey = Registry.CurrentUser.CreateSubKey(shellKeyPath))
             using (RegistryKey commandKey = Registry.CurrentUser.CreateSubKey(shellKeyPath + @"\command"))
             {
                 if (shellKey == null || commandKey == null)
                 {
-                    throw new InvalidOperationException("Registry anahtarı oluşturulamadı.");
+                    throw new InvalidOperationException(LanguageManager.T("RegistryKeyCreateFailed"));
                 }
 
-                shellKey.SetValue(null, MenuText);
+                shellKey.SetValue(null, menuText);
                 shellKey.SetValue("Icon", exePath);
                 commandKey.SetValue(null, "\"" + exePath + "\" " + argumentToken);
             }

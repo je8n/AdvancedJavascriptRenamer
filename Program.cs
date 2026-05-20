@@ -16,7 +16,8 @@ namespace advancedRenamer
                 Application.SetCompatibleTextRenderingDefault(false);
                 Application.ThreadException += (sender, e) => ShowStartupError(e.Exception);
                 AppDomain.CurrentDomain.UnhandledException += (sender, e) => ShowStartupError(e.ExceptionObject as Exception);
-                Application.Run(new Form1(args));
+                LanguageManager.ApplyCommandLine(args);
+                Application.Run(new Form1(LanguageManager.RemoveLanguageArguments(args)));
             }
             catch (Exception ex)
             {
@@ -26,7 +27,7 @@ namespace advancedRenamer
 
         private static void ShowStartupError(Exception exception)
         {
-            string message = exception == null ? "Bilinmeyen hata." : exception.ToString();
+            string message = exception == null ? LanguageManager.T("UnknownError") : exception.ToString();
 
             try
             {
@@ -38,7 +39,7 @@ namespace advancedRenamer
                 // Last-resort UI error reporting must not fail because logging failed.
             }
 
-            MessageBox.Show(message, "Advanced Javascript Renamer Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show(message, LanguageManager.T("StartupErrorTitle"), MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
 
         private static void DeleteStaleErrorLog()

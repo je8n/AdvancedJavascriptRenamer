@@ -36,9 +36,15 @@ namespace advancedRenamer
         private Button _loadTemplateButton;
         private Button _saveTemplateButton;
         private CheckBox _contextMenuCheckBox;
+        private Label _languageLabel;
+        private ComboBox _languageComboBox;
         private Label _countLabel;
         private SplitContainer _mainSplit;
         private SplitContainer _editorSplit;
+        private TabPage _staticTab;
+        private TabPage _dynamicTab;
+        private TextBox _guideTextBox;
+        private bool _loadingLanguageList;
 
         public Form1() : this(new string[0])
         {
@@ -46,6 +52,7 @@ namespace advancedRenamer
 
         public Form1(string[] startupPaths)
         {
+            LanguageManager.EnsureLanguageSelected();
             InitializeComponent();
             if (startupPaths != null && startupPaths.Length > 0)
             {
@@ -82,16 +89,18 @@ namespace advancedRenamer
                 WrapContents = false
             };
 
-            _addButton = new Button { Text = "Add Files/Folders", AutoSize = true, Height = 28 };
-            _simulateButton = new Button { Text = "Simulate (Preview)", AutoSize = true, Height = 28 };
-            _applyButton = new Button { Text = "Apply Changes", AutoSize = true, Height = 28 };
-            _undoButton = new Button { Text = "Undo Last", AutoSize = true, Height = 28, Enabled = false };
+            _addButton = new Button { Text = TextOf("AddFilesFolders"), AutoSize = true, Height = 28 };
+            _simulateButton = new Button { Text = TextOf("SimulatePreview"), AutoSize = true, Height = 28 };
+            _applyButton = new Button { Text = TextOf("ApplyChanges"), AutoSize = true, Height = 28 };
+            _undoButton = new Button { Text = TextOf("UndoLast"), AutoSize = true, Height = 28, Enabled = false };
             _templateNameTextBox = new TextBox { Width = 130, Height = 23, Margin = new Padding(18, 5, 3, 3) };
             _templateComboBox = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 160, Height = 23, Margin = new Padding(3, 5, 3, 3) };
-            _loadTemplateButton = new Button { Text = "Load Template", AutoSize = true, Height = 28 };
-            _saveTemplateButton = new Button { Text = "Save Template", AutoSize = true, Height = 28 };
-            _contextMenuCheckBox = new CheckBox { Text = "Add to Context Menu", AutoSize = true, Height = 28, Margin = new Padding(18, 6, 3, 3) };
-            _countLabel = new Label { Text = "0 item", AutoSize = true, Height = 28, TextAlign = ContentAlignment.MiddleLeft, Margin = new Padding(18, 8, 3, 3) };
+            _loadTemplateButton = new Button { Text = TextOf("LoadTemplate"), AutoSize = true, Height = 28 };
+            _saveTemplateButton = new Button { Text = TextOf("SaveTemplate"), AutoSize = true, Height = 28 };
+            _contextMenuCheckBox = new CheckBox { Text = TextOf("AddToContextMenu"), AutoSize = true, Height = 28, Margin = new Padding(18, 6, 3, 3) };
+            _languageLabel = new Label { Text = TextOf("LanguageShortLabel"), AutoSize = true, Height = 28, TextAlign = ContentAlignment.MiddleLeft, Margin = new Padding(12, 8, 3, 3) };
+            _languageComboBox = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150, Height = 23, Margin = new Padding(3, 5, 3, 3) };
+            _countLabel = new Label { Text = FormatItemCount(0), AutoSize = true, Height = 28, TextAlign = ContentAlignment.MiddleLeft, Margin = new Padding(18, 8, 3, 3) };
 
             _addButton.Click += AddButton_Click;
             _simulateButton.Click += SimulateButton_Click;
@@ -102,6 +111,8 @@ namespace advancedRenamer
             _templateComboBox.SelectedIndexChanged += TemplateComboBox_SelectedIndexChanged;
             _contextMenuCheckBox.CheckedChanged += ContextMenuCheckBox_CheckedChanged;
             _contextMenuCheckBox.Checked = RegistryHelper.IsContextMenuInstalled();
+            LoadLanguageComboBox();
+            _languageComboBox.SelectedIndexChanged += LanguageComboBox_SelectedIndexChanged;
 
             toolbar.Controls.Add(_addButton);
             toolbar.Controls.Add(_simulateButton);
@@ -112,6 +123,8 @@ namespace advancedRenamer
             toolbar.Controls.Add(_loadTemplateButton);
             toolbar.Controls.Add(_saveTemplateButton);
             toolbar.Controls.Add(_contextMenuCheckBox);
+            toolbar.Controls.Add(_languageLabel);
+            toolbar.Controls.Add(_languageComboBox);
             toolbar.Controls.Add(_countLabel);
 
             _mainSplit = new SplitContainer
@@ -129,12 +142,12 @@ namespace advancedRenamer
                 HideSelection = false,
                 AllowDrop = true
             };
-            _listView.Columns.Add("Current Name", 210);
-            _listView.Columns.Add("New Name", 250);
-            _listView.Columns.Add("Path", 330);
-            _listView.Columns.Add("Size", 90);
-            _listView.Columns.Add("Type", 90);
-            _listView.Columns.Add("Status", 220);
+            _listView.Columns.Add(TextOf("CurrentNameColumn"), 210);
+            _listView.Columns.Add(TextOf("NewNameColumn"), 250);
+            _listView.Columns.Add(TextOf("PathColumn"), 330);
+            _listView.Columns.Add(TextOf("SizeColumn"), 90);
+            _listView.Columns.Add(TextOf("TypeColumn"), 90);
+            _listView.Columns.Add(TextOf("StatusColumn"), 220);
             _listView.DragEnter += Form_DragEnter;
             _listView.DragDrop += Form_DragDrop;
 
@@ -145,17 +158,17 @@ namespace advancedRenamer
             };
 
             var scriptTabs = new TabControl { Dock = DockStyle.Fill };
-            var staticTab = new TabPage("Static");
-            var dynamicTab = new TabPage("Dynamic");
+            _staticTab = new TabPage(TextOf("StaticTab"));
+            _dynamicTab = new TabPage(TextOf("DynamicTab"));
 
             _staticScriptTextBox = CreateScriptTextBox(GetDefaultStaticScript());
             _dynamicScriptTextBox = CreateScriptTextBox(GetDefaultDynamicScript());
-            staticTab.Controls.Add(_staticScriptTextBox);
-            dynamicTab.Controls.Add(_dynamicScriptTextBox);
-            scriptTabs.TabPages.Add(staticTab);
-            scriptTabs.TabPages.Add(dynamicTab);
+            _staticTab.Controls.Add(_staticScriptTextBox);
+            _dynamicTab.Controls.Add(_dynamicScriptTextBox);
+            scriptTabs.TabPages.Add(_staticTab);
+            scriptTabs.TabPages.Add(_dynamicTab);
 
-            var guide = new TextBox
+            _guideTextBox = new TextBox
             {
                 Dock = DockStyle.Fill,
                 Multiline = true,
@@ -169,7 +182,7 @@ namespace advancedRenamer
             };
 
             _editorSplit.Panel1.Controls.Add(scriptTabs);
-            _editorSplit.Panel2.Controls.Add(guide);
+            _editorSplit.Panel2.Controls.Add(_guideTextBox);
             _mainSplit.Panel1.Controls.Add(_listView);
             _mainSplit.Panel2.Controls.Add(_editorSplit);
 
@@ -230,86 +243,41 @@ namespace advancedRenamer
             };
         }
 
+        private static string TextOf(string key)
+        {
+            return LanguageManager.T(key);
+        }
+
+        private static string FormatText(string key, params object[] args)
+        {
+            return string.Format(CultureInfo.CurrentCulture, TextOf(key), args);
+        }
+
+        private static string FormatItemCount(int count)
+        {
+            return count + " " + (count == 1 ? TextOf("ItemSingular") : TextOf("ItemPlural"));
+        }
+
         private static string GetDefaultStaticScript()
         {
-            return "// Runs once before processing the file list.\r\n" +
-                   "// Keep shared constants, counters, arrays, and helper functions here.\r\n\r\n" +
-                   "// Example:\r\n" +
-                   "// let counter = 0;\r\n" +
-                   "// const prefix = \"file_\";\r\n" +
-                   "// function nextName(ext) { return prefix + counter++ + ext; }\r\n";
+            return TextOf("DefaultStaticScript");
         }
 
         private static string GetDefaultDynamicScript()
         {
-            return "// Return the new filename. ext includes the dot, for example \".jpg\".\r\n" +
-                   "// Examples: return name.replace(/ /g, \"_\") + ext;\r\n" +
-                   "//           return index.toString().padStart(3, \"0\") + \"_\" + name + ext;\r\n\r\n" +
-                   "return name + ext;";
+            return TextOf("DefaultDynamicScript");
         }
 
         private static string GetVariableGuide()
         {
-            return "Variables\r\n" +
-                   "---------\r\n" +
-                   "name      filename without extension\r\n" +
-                   "ext       extension, e.g. .jpg\r\n" +
-                   "path      folder path\r\n" +
-                   "index     zero-based item index\r\n" +
-                   "isImage   true for image files\r\n" +
-                   "isMusic   true for audio files\r\n" +
-                   "isVideo   true for video files\r\n" +
-                   "isApp     true for .exe/.dll files\r\n" +
-                   "size      file size in bytes\r\n" +
-                   "fullName  full file path\r\n" +
-                   "created   JS Date\r\n" +
-                   "modified  JS Date\r\n" +
-                   "accessed  JS Date\r\n" +
-                   "attributes file attributes text\r\n\r\n" +
-                   "Static script runs once per Simulate/Apply.\r\n" +
-                   "Dynamic script runs once for each file.\r\n\r\n" +
-                   "meta\r\n" +
-                   "----\r\n" +
-                   "File: meta.name, meta.extension, meta.fullName\r\n" +
-                   "      meta.path, meta.sizeBytes, meta.sizeText\r\n" +
-                   "      meta.creationDate, meta.modifiedDate\r\n" +
-                   "      meta.accessedDate, meta.attributes\r\n" +
-                   "      meta.isReadOnly, meta.isHidden\r\n" +
-                   "      meta.isSystem, meta.isArchive\r\n\r\n" +
-                   "Image:\r\n" +
-                   "meta.width\r\n" +
-                   "meta.height\r\n" +
-                   "meta.dpiX, meta.dpiY\r\n" +
-                   "meta.cameraMake, meta.cameraModel\r\n" +
-                   "meta.fStop, meta.exposureTime\r\n" +
-                   "meta.iso, meta.focalLength\r\n" +
-                   "meta.dateTaken, meta.digitizedDate\r\n" +
-                   "meta.gpsLatitude, meta.gpsLongitude\r\n" +
-                   "meta.orientation\r\n\r\n" +
-                   "Audio/Video:\r\n" +
-                   "meta.duration, meta.durationText\r\n" +
-                   "meta.videoWidth, meta.videoHeight\r\n" +
-                   "meta.bitrateKbps, meta.frameRate\r\n" +
-                   "meta.audioChannels, meta.audioSampleRate\r\n" +
-                   "meta.audioBitrateKbps, meta.videoCodec\r\n" +
-                   "meta.audioCodec\r\n\r\n" +
-                   "Music tags:\r\n" +
-                   "meta.title, meta.artist, meta.artists\r\n" +
-                   "meta.album, meta.year, meta.genre\r\n" +
-                   "meta.trackNumber, meta.bpm\r\n\r\n" +
-                   "App:\r\n" +
-                   "meta.productName, meta.fileVersion\r\n" +
-                   "meta.copyright, meta.description\r\n" +
-                   "meta.isSigned, meta.signatureValid\r\n" +
-                   "meta.publisher\r\n\r\n" +
-                   "The script must return a string.";
+            return TextOf("VariableGuide");
         }
 
         private void AddButton_Click(object sender, EventArgs e)
         {
             using (var openDialog = new OpenFileDialog())
             {
-                openDialog.Title = "Add files";
+                openDialog.Title = TextOf("AddFilesTitle");
                 openDialog.Multiselect = true;
                 openDialog.CheckFileExists = true;
                 if (openDialog.ShowDialog(this) == DialogResult.OK)
@@ -320,7 +288,7 @@ namespace advancedRenamer
 
             using (var folderDialog = new FolderBrowserDialog())
             {
-                folderDialog.Description = "Optionally add a folder. Cancel to skip.";
+                folderDialog.Description = TextOf("AddFolderDescription");
                 folderDialog.ShowNewFolderButton = false;
                 if (folderDialog.ShowDialog(this) == DialogResult.OK)
                 {
@@ -339,7 +307,7 @@ namespace advancedRenamer
             string name = Convert.ToString(_templateComboBox.SelectedItem, CultureInfo.InvariantCulture);
             if (string.IsNullOrWhiteSpace(name))
             {
-                MessageBox.Show(this, "Yüklenecek template seçilmedi.", AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(this, TextOf("TemplateNotSelected"), AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
@@ -356,7 +324,7 @@ namespace advancedRenamer
 
             if (string.IsNullOrWhiteSpace(name))
             {
-                MessageBox.Show(this, "Template için bir isim yazın.", AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(this, TextOf("TemplateNameRequired"), AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
@@ -367,7 +335,7 @@ namespace advancedRenamer
 
                 if (existing != null)
                 {
-                    if (MessageBox.Show(this, "\"" + existing.Name + "\" template'i üzerine yazılsın mı?", "Save Template", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+                    if (MessageBox.Show(this, FormatText("OverwriteTemplate", existing.Name), TextOf("SaveTemplate"), MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
                     {
                         return;
                     }
@@ -388,11 +356,11 @@ namespace advancedRenamer
 
                 SaveTemplates(templates);
                 RefreshTemplateList(name);
-                MessageBox.Show(this, "Template kaydedildi.", AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(this, TextOf("TemplateSaved"), AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this, ex.Message, "Template Save Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(this, ex.Message, TextOf("TemplateSaveErrorTitle"), MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -410,6 +378,106 @@ namespace advancedRenamer
             }
         }
 
+        private void LanguageComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (_loadingLanguageList)
+            {
+                return;
+            }
+
+            var language = _languageComboBox.SelectedItem as LanguageManager.LanguageInfo;
+            if (language == null || string.Equals(language.Code, LanguageManager.CurrentCode, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            if (!LanguageManager.SetLanguage(language.Code))
+            {
+                LoadLanguageComboBox();
+                return;
+            }
+
+            ApplyLanguageToUi();
+        }
+
+        private void LoadLanguageComboBox()
+        {
+            _loadingLanguageList = true;
+            try
+            {
+                _languageComboBox.Items.Clear();
+                foreach (LanguageManager.LanguageInfo language in LanguageManager.GetLanguages())
+                {
+                    int index = _languageComboBox.Items.Add(language);
+                    if (string.Equals(language.Code, LanguageManager.CurrentCode, StringComparison.OrdinalIgnoreCase))
+                    {
+                        _languageComboBox.SelectedIndex = index;
+                    }
+                }
+
+                if (_languageComboBox.SelectedIndex < 0 && _languageComboBox.Items.Count > 0)
+                {
+                    _languageComboBox.SelectedIndex = 0;
+                }
+            }
+            finally
+            {
+                _loadingLanguageList = false;
+            }
+        }
+
+        private void ApplyLanguageToUi()
+        {
+            _addButton.Text = TextOf("AddFilesFolders");
+            _simulateButton.Text = TextOf("SimulatePreview");
+            _applyButton.Text = TextOf("ApplyChanges");
+            _undoButton.Text = TextOf("UndoLast");
+            _loadTemplateButton.Text = TextOf("LoadTemplate");
+            _saveTemplateButton.Text = TextOf("SaveTemplate");
+            _contextMenuCheckBox.Text = TextOf("AddToContextMenu");
+            _languageLabel.Text = TextOf("LanguageShortLabel");
+            _countLabel.Text = FormatItemCount(_entries.Count);
+
+            if (_listView.Columns.Count >= 6)
+            {
+                _listView.Columns[0].Text = TextOf("CurrentNameColumn");
+                _listView.Columns[1].Text = TextOf("NewNameColumn");
+                _listView.Columns[2].Text = TextOf("PathColumn");
+                _listView.Columns[3].Text = TextOf("SizeColumn");
+                _listView.Columns[4].Text = TextOf("TypeColumn");
+                _listView.Columns[5].Text = TextOf("StatusColumn");
+            }
+
+            if (_staticTab != null)
+            {
+                _staticTab.Text = TextOf("StaticTab");
+            }
+
+            if (_dynamicTab != null)
+            {
+                _dynamicTab.Text = TextOf("DynamicTab");
+            }
+
+            if (_guideTextBox != null)
+            {
+                _guideTextBox.Text = GetVariableGuide();
+            }
+
+            LoadLanguageComboBox();
+
+            try
+            {
+                if (_contextMenuCheckBox.Checked)
+                {
+                    RegistryHelper.InstallContextMenu(TextOf("ContextMenuText"));
+                }
+            }
+            catch
+            {
+                // Language changes should not fail because the optional context menu text could not be refreshed.
+            }
+        }
+
         private void ApplyButton_Click(object sender, EventArgs e)
         {
             SimulateRenames(showMessage: false);
@@ -417,11 +485,11 @@ namespace advancedRenamer
             var ready = _entries.Where(x => x.Status == "Ready" && !string.IsNullOrWhiteSpace(x.NewName)).ToList();
             if (ready.Count == 0)
             {
-                MessageBox.Show(this, "Uygulanacak geçerli yeniden adlandırma yok.", AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(this, TextOf("NoValidRenames"), AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
-            if (MessageBox.Show(this, ready.Count + " dosya yeniden adlandırılacak. Devam edilsin mi?", "Apply Changes", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
+            if (MessageBox.Show(this, FormatText("ApplyConfirm", ready.Count), TextOf("ApplyChanges"), MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
             {
                 return;
             }
@@ -462,11 +530,11 @@ namespace advancedRenamer
         {
             if (_lastRenameOperations.Count == 0)
             {
-                MessageBox.Show(this, "Geri alınacak son işlem yok.", AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(this, TextOf("UndoNoOperation"), AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
-            if (MessageBox.Show(this, _lastRenameOperations.Count + " dosya eski adına döndürülecek. Devam edilsin mi?", "Undo Last", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
+            if (MessageBox.Show(this, FormatText("UndoConfirm", _lastRenameOperations.Count), TextOf("UndoLast"), MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
             {
                 return;
             }
@@ -509,7 +577,7 @@ namespace advancedRenamer
             _lastRenameOperations.AddRange(remaining);
             _undoButton.Enabled = _lastRenameOperations.Count > 0;
             RefreshListView();
-            MessageBox.Show(this, restored + " dosya geri alındı.", "Undo Last", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(this, FormatText("UndoRestored", restored), TextOf("UndoLast"), MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private void ContextMenuCheckBox_CheckedChanged(object sender, EventArgs e)
@@ -518,7 +586,7 @@ namespace advancedRenamer
             {
                 if (_contextMenuCheckBox.Checked)
                 {
-                    RegistryHelper.InstallContextMenu();
+                    RegistryHelper.InstallContextMenu(TextOf("ContextMenuText"));
                 }
                 else
                 {
@@ -530,7 +598,7 @@ namespace advancedRenamer
                 _contextMenuCheckBox.CheckedChanged -= ContextMenuCheckBox_CheckedChanged;
                 _contextMenuCheckBox.Checked = !_contextMenuCheckBox.Checked;
                 _contextMenuCheckBox.CheckedChanged += ContextMenuCheckBox_CheckedChanged;
-                MessageBox.Show(this, ex.Message, "Registry Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(this, ex.Message, TextOf("RegistryErrorTitle"), MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -573,7 +641,7 @@ namespace advancedRenamer
                 ScriptTemplate template = LoadTemplates().FirstOrDefault(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
                 if (template == null)
                 {
-                    MessageBox.Show(this, "Template bulunamadı.", AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBox.Show(this, TextOf("TemplateMissing"), AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Information);
                     RefreshTemplateList(selectName: null);
                     return;
                 }
@@ -584,7 +652,7 @@ namespace advancedRenamer
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this, ex.Message, "Template Load Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(this, ex.Message, TextOf("TemplateLoadErrorTitle"), MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -617,7 +685,7 @@ namespace advancedRenamer
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this, ex.Message, "Template List Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(this, ex.Message, TextOf("TemplateListErrorTitle"), MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             finally
             {
@@ -705,7 +773,7 @@ namespace advancedRenamer
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show(this, inputPath + "\r\n" + ex.Message, "Add Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MessageBox.Show(this, inputPath + "\r\n" + ex.Message, TextOf("AddErrorTitle"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 }
             }
 
@@ -724,7 +792,7 @@ namespace advancedRenamer
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show(this, file + "\r\n" + ex.Message, "File Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MessageBox.Show(this, file + "\r\n" + ex.Message, TextOf("FileErrorTitle"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 }
             }
 
@@ -839,7 +907,7 @@ namespace advancedRenamer
 
             if (showMessage)
             {
-                MessageBox.Show(this, "Simülasyon tamamlandı.", AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(this, TextOf("SimulationComplete"), AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
 
@@ -1175,7 +1243,7 @@ namespace advancedRenamer
             }
 
             _listView.EndUpdate();
-            _countLabel.Text = _entries.Count + (_entries.Count == 1 ? " item" : " items");
+            _countLabel.Text = FormatItemCount(_entries.Count);
         }
 
         private static string FormatSize(long bytes)

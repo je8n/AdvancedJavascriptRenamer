@@ -24,4 +24,10 @@
     <PackageReference Include="MetadataExtractor" Version="2.9.3" />
     <PackageReference Include="TagLibSharp" Version="2.3.0" />
   </ItemGroup>
+
+  <Target Name="CopyRuntimeDependenciesToIntermediateOutput" AfterTargets="Build">
+    <Copy SourceFiles="@(ReferenceCopyLocalPaths)"
+          DestinationFolder="$(IntermediateOutputPath)"
+          SkipUnchangedFiles="true" />
+  </Target>
 </Project>
