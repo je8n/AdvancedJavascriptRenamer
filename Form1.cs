@@ -497,24 +497,26 @@ namespace advancedRenamer
             _lastRenameOperations.Clear();
             _undoButton.Enabled = false;
 
-            foreach (FileEntry entry in ready)
+            foreach (FileEntry entry in GetApplyOrder(ready))
             {
                 try
                 {
                     string sourcePath = entry.FullPath;
                     string targetPath = Path.Combine(entry.DirectoryPath, entry.NewName);
-                    if (File.Exists(targetPath))
+                    if (PathExists(targetPath))
                     {
                         entry.Status = "Skipped: target exists";
                         continue;
                     }
 
-                    File.Move(sourcePath, targetPath);
-                    _lastRenameOperations.Add(new RenameOperation(sourcePath, targetPath));
-                    entry.FullPath = targetPath;
-                    entry.CurrentName = Path.GetFileName(targetPath);
-                    entry.NewName = string.Empty;
-                    entry.Status = "Renamed";
+                    MovePath(sourcePath, targetPath, entry.IsDirectory);
+                    if (entry.IsDirectory)
+                    {
+                        UpdateDescendantPaths(sourcePath, targetPath);
+                    }
+
+                    _lastRenameOperations.Add(new RenameOperation(sourcePath, targetPath, entry.IsDirectory));
+                    UpdateEntryAfterMove(entry, targetPath);
                 }
                 catch (Exception ex)
                 {
@@ -547,22 +549,27 @@ namespace advancedRenamer
                 RenameOperation operation = _lastRenameOperations[i];
                 try
                 {
-                    if (!File.Exists(operation.NewPath))
+                    if (!PathExists(operation.NewPath))
                     {
                         MarkEntryStatus(operation.NewPath, "Undo skipped: renamed file missing");
                         remaining.Add(operation);
                         continue;
                     }
 
-                    if (File.Exists(operation.OriginalPath))
+                    if (PathExists(operation.OriginalPath))
                     {
                         MarkEntryStatus(operation.NewPath, "Undo skipped: original exists");
                         remaining.Add(operation);
                         continue;
                     }
 
-                    File.Move(operation.NewPath, operation.OriginalPath);
-                    UpdateEntryAfterUndo(operation.NewPath, operation.OriginalPath);
+                    MovePath(operation.NewPath, operation.OriginalPath, operation.IsDirectory);
+                    if (operation.IsDirectory)
+                    {
+                        UpdateDescendantPaths(operation.NewPath, operation.OriginalPath);
+                    }
+
+                    UpdateEntryAfterUndo(operation.NewPath, operation.OriginalPath, operation.IsDirectory);
                     restored++;
                 }
                 catch (Exception ex)
@@ -602,7 +609,14 @@ namespace advancedRenamer
             }
         }
 
-        private void UpdateEntryAfterUndo(string newPath, string originalPath)
+        private void UpdateEntryAfterMove(FileEntry entry, string targetPath)
+        {
+            PopulateEntryFromPath(entry, targetPath, entry.IsDirectory);
+            entry.NewName = string.Empty;
+            entry.Status = "Renamed";
+        }
+
+        private void UpdateEntryAfterUndo(string newPath, string originalPath, bool isDirectory)
         {
             FileEntry entry = _entries.FirstOrDefault(x => string.Equals(x.FullPath, newPath, StringComparison.OrdinalIgnoreCase));
             if (entry == null)
@@ -610,19 +624,9 @@ namespace advancedRenamer
                 return;
             }
 
-            var info = new FileInfo(originalPath);
-            entry.FullPath = info.FullName;
-            entry.CurrentName = info.Name;
+            PopulateEntryFromPath(entry, originalPath, isDirectory);
             entry.NewName = string.Empty;
-            entry.DirectoryPath = info.DirectoryName ?? string.Empty;
-            entry.Size = info.Length;
-            entry.Type = info.Extension.TrimStart('.').ToUpperInvariant();
-            entry.Created = info.CreationTime;
-            entry.Modified = info.LastWriteTime;
-            entry.Accessed = info.LastAccessTime;
-            entry.Attributes = info.Attributes;
             entry.Status = "Undo restored";
-            entry.Meta = LoadMetadata(info, entry.IsImage, entry.IsMusic, entry.IsVideo, entry.IsApp);
         }
 
         private void MarkEntryStatus(string path, string status)
@@ -631,6 +635,51 @@ namespace advancedRenamer
             if (entry != null)
             {
                 entry.Status = status;
+            }
+        }
+
+        private static IEnumerable<FileEntry> GetApplyOrder(IEnumerable<FileEntry> entries)
+        {
+            return entries
+                .OrderBy(x => x.IsDirectory ? 1 : 0)
+                .ThenByDescending(x => GetPathDepth(x.FullPath));
+        }
+
+        private static int GetPathDepth(string path)
+        {
+            return string.IsNullOrEmpty(path) ? 0 : path.Count(x => x == Path.DirectorySeparatorChar || x == Path.AltDirectorySeparatorChar);
+        }
+
+        private static bool PathExists(string path)
+        {
+            return File.Exists(path) || System.IO.Directory.Exists(path);
+        }
+
+        private static void MovePath(string sourcePath, string targetPath, bool isDirectory)
+        {
+            if (isDirectory)
+            {
+                System.IO.Directory.Move(sourcePath, targetPath);
+            }
+            else
+            {
+                File.Move(sourcePath, targetPath);
+            }
+        }
+
+        private void UpdateDescendantPaths(string oldDirectoryPath, string newDirectoryPath)
+        {
+            string oldPrefix = oldDirectoryPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            foreach (FileEntry entry in _entries)
+            {
+                if (!entry.FullPath.StartsWith(oldPrefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                string relativePath = entry.FullPath.Substring(oldPrefix.Length);
+                string updatedPath = Path.Combine(newDirectoryPath, relativePath);
+                PopulateEntryFromPath(entry, updatedPath, entry.IsDirectory);
             }
         }
 
@@ -757,18 +806,19 @@ namespace advancedRenamer
 
         private void AddPaths(IEnumerable<string> paths)
         {
-            var files = new List<string>();
+            var items = new List<EntryCandidate>();
             foreach (string inputPath in paths.Where(x => !string.IsNullOrWhiteSpace(x)))
             {
                 try
                 {
                     if (File.Exists(inputPath))
                     {
-                        files.Add(inputPath);
+                        items.Add(new EntryCandidate(inputPath, false));
                     }
                     else if (System.IO.Directory.Exists(inputPath))
                     {
-                        files.AddRange(System.IO.Directory.EnumerateFiles(inputPath, "*", SearchOption.AllDirectories));
+                        items.AddRange(System.IO.Directory.EnumerateDirectories(inputPath, "*", SearchOption.TopDirectoryOnly).Select(x => new EntryCandidate(x, true)));
+                        items.AddRange(System.IO.Directory.EnumerateFiles(inputPath, "*", SearchOption.TopDirectoryOnly).Select(x => new EntryCandidate(x, false)));
                     }
                 }
                 catch (Exception ex)
@@ -778,53 +828,81 @@ namespace advancedRenamer
             }
 
             var existing = new HashSet<string>(_entries.Select(x => x.FullPath), StringComparer.OrdinalIgnoreCase);
-            foreach (string file in files.Distinct(StringComparer.OrdinalIgnoreCase))
+            foreach (EntryCandidate item in items.GroupBy(x => x.FullPath, StringComparer.OrdinalIgnoreCase).Select(x => x.First()))
             {
-                if (existing.Contains(file))
+                if (existing.Contains(item.FullPath))
                 {
                     continue;
                 }
 
                 try
                 {
-                    _entries.Add(CreateEntry(file));
-                    existing.Add(file);
+                    _entries.Add(CreateEntry(item.FullPath, item.IsDirectory));
+                    existing.Add(item.FullPath);
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show(this, file + "\r\n" + ex.Message, TextOf("FileErrorTitle"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MessageBox.Show(this, item.FullPath + "\r\n" + ex.Message, TextOf("FileErrorTitle"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 }
             }
 
             RefreshListView();
         }
 
-        private FileEntry CreateEntry(string filePath)
+        private FileEntry CreateEntry(string path, bool isDirectory)
         {
-            var info = new FileInfo(filePath);
-            bool isImage = IsImageFile(info.Extension);
-            bool isMusic = IsAudioFile(info.Extension);
-            bool isVideo = IsVideoFile(info.Extension);
-            bool isApp = IsApplicationFile(info.Extension);
+            var entry = new FileEntry();
+            PopulateEntryFromPath(entry, path, isDirectory);
+            entry.Status = "Added";
+            return entry;
+        }
 
-            return new FileEntry
+        private static void PopulateEntryFromPath(FileEntry entry, string path, bool isDirectory)
+        {
+            if (isDirectory)
             {
-                FullPath = info.FullName,
-                CurrentName = info.Name,
-                DirectoryPath = info.DirectoryName ?? string.Empty,
-                Size = info.Length,
-                Type = info.Extension.TrimStart('.').ToUpperInvariant(),
-                IsImage = isImage,
-                IsMusic = isMusic,
-                IsVideo = isVideo,
-                IsApp = isApp,
-                Created = info.CreationTime,
-                Modified = info.LastWriteTime,
-                Accessed = info.LastAccessTime,
-                Attributes = info.Attributes,
-                Meta = LoadMetadata(info, isImage, isMusic, isVideo, isApp),
-                Status = "Added"
-            };
+                var info = new DirectoryInfo(path);
+                entry.FullPath = info.FullName;
+                entry.CurrentName = info.Name;
+                entry.DirectoryPath = info.Parent == null ? string.Empty : info.Parent.FullName;
+                entry.Size = 0;
+                entry.Type = "DIR";
+                entry.IsDirectory = true;
+                entry.IsFile = false;
+                entry.IsImage = false;
+                entry.IsMusic = false;
+                entry.IsVideo = false;
+                entry.IsApp = false;
+                entry.Created = info.CreationTime;
+                entry.Modified = info.LastWriteTime;
+                entry.Accessed = info.LastAccessTime;
+                entry.Attributes = info.Attributes;
+                entry.Meta = LoadDirectoryMetadata(info);
+                return;
+            }
+
+            var fileInfo = new FileInfo(path);
+            bool isImage = IsImageFile(fileInfo.Extension);
+            bool isMusic = IsAudioFile(fileInfo.Extension);
+            bool isVideo = IsVideoFile(fileInfo.Extension);
+            bool isApp = IsApplicationFile(fileInfo.Extension);
+
+            entry.FullPath = fileInfo.FullName;
+            entry.CurrentName = fileInfo.Name;
+            entry.DirectoryPath = fileInfo.DirectoryName ?? string.Empty;
+            entry.Size = fileInfo.Length;
+            entry.Type = fileInfo.Extension.TrimStart('.').ToUpperInvariant();
+            entry.IsDirectory = false;
+            entry.IsFile = true;
+            entry.IsImage = isImage;
+            entry.IsMusic = isMusic;
+            entry.IsVideo = isVideo;
+            entry.IsApp = isApp;
+            entry.Created = fileInfo.CreationTime;
+            entry.Modified = fileInfo.LastWriteTime;
+            entry.Accessed = fileInfo.LastAccessTime;
+            entry.Attributes = fileInfo.Attributes;
+            entry.Meta = LoadMetadata(fileInfo, isImage, isMusic, isVideo, isApp);
         }
 
         private void SimulateRenames(bool showMessage)
@@ -879,7 +957,7 @@ namespace advancedRenamer
                             entry.NewName = sanitized;
                             entry.Status = "Invalid: duplicate target";
                         }
-                        else if (File.Exists(targetPath))
+                        else if (PathExists(targetPath))
                         {
                             entry.NewName = sanitized;
                             entry.Status = "Invalid: target exists";
@@ -943,10 +1021,12 @@ namespace advancedRenamer
 
         private static void SetEntryVariables(Engine engine, FileEntry entry, int index)
         {
-            engine.SetValue("name", Path.GetFileNameWithoutExtension(entry.CurrentName));
-            engine.SetValue("ext", Path.GetExtension(entry.CurrentName));
+            engine.SetValue("name", GetScriptName(entry));
+            engine.SetValue("ext", GetScriptExtension(entry));
             engine.SetValue("path", entry.DirectoryPath);
             engine.SetValue("index", index);
+            engine.SetValue("isDirectory", entry.IsDirectory);
+            engine.SetValue("isFile", entry.IsFile);
             engine.SetValue("isImage", entry.IsImage);
             engine.SetValue("isMusic", entry.IsMusic);
             engine.SetValue("isVideo", entry.IsVideo);
@@ -961,10 +1041,20 @@ namespace advancedRenamer
             engine.Execute("var created = new Date(__createdIso); var modified = new Date(__modifiedIso); var accessed = new Date(__accessedIso);");
         }
 
+        private static string GetScriptName(FileEntry entry)
+        {
+            return entry.IsDirectory ? entry.CurrentName : Path.GetFileNameWithoutExtension(entry.CurrentName);
+        }
+
+        private static string GetScriptExtension(FileEntry entry)
+        {
+            return entry.IsDirectory ? string.Empty : Path.GetExtension(entry.CurrentName);
+        }
+
         private static FileMeta LoadMetadata(FileInfo info, bool isImage, bool isMusic, bool isVideo, bool isApp)
         {
             var meta = new FileMeta();
-            PopulateFileMetadata(info, meta);
+            PopulateFileSystemMetadata(info, meta, info.Length, isDirectory: false);
 
             if (isImage)
             {
@@ -1066,14 +1156,25 @@ namespace advancedRenamer
             return meta;
         }
 
-        private static void PopulateFileMetadata(FileInfo info, FileMeta meta)
+        private static FileMeta LoadDirectoryMetadata(DirectoryInfo info)
         {
-            meta.name = Path.GetFileNameWithoutExtension(info.Name);
-            meta.extension = info.Extension;
+            var meta = new FileMeta();
+            PopulateFileSystemMetadata(info, meta, 0, isDirectory: true);
+            return meta;
+        }
+
+        private static void PopulateFileSystemMetadata(FileSystemInfo info, FileMeta meta, long sizeBytes, bool isDirectory)
+        {
+            meta.name = isDirectory ? info.Name : Path.GetFileNameWithoutExtension(info.Name);
+            meta.extension = isDirectory ? string.Empty : info.Extension;
             meta.fullName = info.FullName;
-            meta.path = info.DirectoryName ?? string.Empty;
-            meta.sizeBytes = info.Length;
-            meta.sizeText = FormatSize(info.Length);
+            meta.path = isDirectory
+                ? (((DirectoryInfo)info).Parent == null ? string.Empty : ((DirectoryInfo)info).Parent.FullName)
+                : (((FileInfo)info).DirectoryName ?? string.Empty);
+            meta.sizeBytes = sizeBytes;
+            meta.sizeText = FormatSize(sizeBytes);
+            meta.isDirectory = isDirectory;
+            meta.isFile = !isDirectory;
             meta.creationDate = info.CreationTime.ToString("o", CultureInfo.InvariantCulture);
             meta.modifiedDate = info.LastWriteTime.ToString("o", CultureInfo.InvariantCulture);
             meta.accessedDate = info.LastAccessTime.ToString("o", CultureInfo.InvariantCulture);
@@ -1270,6 +1371,8 @@ namespace advancedRenamer
             public long Size { get; set; }
             public string Type { get; set; }
             public string Status { get; set; }
+            public bool IsDirectory { get; set; }
+            public bool IsFile { get; set; }
             public bool IsImage { get; set; }
             public bool IsMusic { get; set; }
             public bool IsVideo { get; set; }
@@ -1283,14 +1386,28 @@ namespace advancedRenamer
 
         private sealed class RenameOperation
         {
-            public RenameOperation(string originalPath, string newPath)
+            public RenameOperation(string originalPath, string newPath, bool isDirectory)
             {
                 OriginalPath = originalPath;
                 NewPath = newPath;
+                IsDirectory = isDirectory;
             }
 
             public string OriginalPath { get; private set; }
             public string NewPath { get; private set; }
+            public bool IsDirectory { get; private set; }
+        }
+
+        private sealed class EntryCandidate
+        {
+            public EntryCandidate(string fullPath, bool isDirectory)
+            {
+                FullPath = fullPath;
+                IsDirectory = isDirectory;
+            }
+
+            public string FullPath { get; private set; }
+            public bool IsDirectory { get; private set; }
         }
 
         [DataContract]
@@ -1326,6 +1443,8 @@ namespace advancedRenamer
         public string modifiedDate { get; set; } = string.Empty;
         public string accessedDate { get; set; } = string.Empty;
         public string attributes { get; set; } = string.Empty;
+        public bool isDirectory { get; set; }
+        public bool isFile { get; set; }
         public bool isReadOnly { get; set; }
         public bool isHidden { get; set; }
         public bool isSystem { get; set; }

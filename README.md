@@ -125,6 +125,8 @@ These folders are generated automatically during build.
 5. Use `Apply Changes` if the preview is correct.
 6. Use `Undo Last` if you need to revert the last successful Apply operation.
 
+When a folder is added, only its direct files and direct child folders are added to the list. Child folder contents are not scanned recursively.
+
 Main grid columns:
 
 - `Current Name`
@@ -147,7 +149,7 @@ function nextName(ext) {
 }
 ```
 
-`Dynamic` runs once for each file and must return the new filename as a string:
+`Dynamic` runs once for each item and must return the new file/folder name as a string:
 
 ```javascript
 return nextName(ext);
@@ -159,23 +161,25 @@ Simple index example:
 return index.toString().padStart(3, "0") + "_" + name + ext;
 ```
 
-Empty or invalid results are not applied. Duplicate targets and existing target files are marked as `Invalid` or `Skipped`.
+Empty or invalid results are not applied. Duplicate targets and existing target files/folders are marked as `Invalid` or `Skipped`.
 
 ## Available JS Variables
 
-Available inside the per-file Dynamic script:
+Available inside the per-file or per-folder Dynamic script:
 
 ```text
-name        Filename without extension
-ext         Extension, e.g. .jpg
-path        Directory path
+name        Filename without extension; folder name for folders
+ext         Extension, e.g. .jpg; empty for folders
+path        Parent folder path
 index       Zero-based index in the list
+isDirectory Whether the item is a folder
+isFile      Whether the item is a file
 isImage     Whether the file is an image
 isMusic     Whether the file is audio
 isVideo     Whether the file is video
 isApp       Whether the file is .exe or .dll
-size        File size in bytes
-fullName    Full file path
+size        File size in bytes; 0 for folders
+fullName    Full file/folder path
 created     JS Date
 modified    JS Date
 accessed    JS Date
@@ -198,6 +202,8 @@ meta.creationDate
 meta.modifiedDate
 meta.accessedDate
 meta.attributes
+meta.isDirectory
+meta.isFile
 meta.isReadOnly
 meta.isHidden
 meta.isSystem

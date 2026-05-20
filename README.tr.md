@@ -132,6 +132,8 @@ Ana liste kolonları:
 - `Tür`
 - `Durum`
 
+Klasör eklendiğinde yalnızca o klasörün doğrudan içindeki dosyalar ve alt klasörler listeye alınır. Alt klasörlerin içi taranmaz.
+
 ## Static ve Dynamic Betik
 
 `Static` betiği işlem başlamadan önce bir kez çalışır. Sabitler, sayaçlar ve yardımcı fonksiyonlar için uygundur:
@@ -145,7 +147,7 @@ function nextName(ext) {
 }
 ```
 
-`Dynamic` betiği her dosya için çalışır ve yeni dosya adını metin olarak döndürmelidir:
+`Dynamic` betiği her öğe için çalışır ve yeni dosya/klasör adını metin olarak döndürmelidir:
 
 ```javascript
 return nextName(ext);
@@ -157,23 +159,25 @@ Basit index örneği:
 return index.toString().padStart(3, "0") + "_" + name + ext;
 ```
 
-Boş veya geçersiz sonuçlar uygulanmaz. Aynı hedef ad veya mevcut hedef dosya varsa satır `Invalid`/`Skipped` durumuna düşer.
+Boş veya geçersiz sonuçlar uygulanmaz. Aynı hedef ad veya mevcut hedef dosya/klasör varsa satır `Invalid`/`Skipped` durumuna düşer.
 
 ## Kullanılabilir JS Değişkenleri
 
-Dosya başına Dynamic betiği içinde kullanılabilir:
+Dosya veya klasör başına Dynamic betiği içinde kullanılabilir:
 
 ```text
-name        Uzantısız dosya adı
-ext         Uzantı, örn. .jpg
-path        Klasör yolu
+name        Uzantısız dosya adı; klasörlerde klasör adı
+ext         Uzantı, örn. .jpg; klasörlerde boş
+path        Üst klasör yolu
 index       Listedeki sıfır bazlı sıra
+isDirectory Klasör mü
+isFile      Dosya mı
 isImage     Resim dosyası mı
 isMusic     Ses dosyası mı
 isVideo     Video dosyası mı
 isApp       .exe veya .dll mi
-size        Byte cinsinden dosya boyutu
-fullName    Tam dosya yolu
+size        Byte cinsinden dosya boyutu; klasörlerde 0
+fullName    Tam dosya/klasör yolu
 created     JS tarih nesnesi
 modified    JS tarih nesnesi
 accessed    JS tarih nesnesi
@@ -196,6 +200,8 @@ meta.creationDate
 meta.modifiedDate
 meta.accessedDate
 meta.attributes
+meta.isDirectory
+meta.isFile
 meta.isReadOnly
 meta.isHidden
 meta.isSystem

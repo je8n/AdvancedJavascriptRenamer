@@ -74,7 +74,9 @@ File adding:
 
 - Allow selecting multiple files with `OpenFileDialog`.
 - Allow selecting a folder with `FolderBrowserDialog`.
-- When a folder is added, recursively add files under it.
+- When a folder is added, add only its direct files and direct child folders.
+- Do not recursively scan child folder contents.
+- Folder rows must be renameable with the same preview/apply/undo workflow as file rows.
 - Support drag and drop on the form and ListView.
 - Do not add the same file twice.
 
@@ -82,9 +84,9 @@ JavaScript execution model:
 
 - Execute JavaScript with Jint.
 - `Static` script must run once at the start of each Simulate/Apply operation.
-- `Dynamic` script must run once per file using the same Jint engine.
+- `Dynamic` script must run once per file/folder row using the same Jint engine.
 - Variables, counters, constants, and helper functions defined in Static must be visible to Dynamic.
-- Dynamic must return the new filename as a string.
+- Dynamic must return the new file/folder name as a string.
 - Default Static script must include commented examples:
   - `let counter = 0;`
   - `const prefix = "file_";`
@@ -100,6 +102,8 @@ Dynamic script variables:
 - `ext`: extension, e.g. `.jpg`
 - `path`: directory path
 - `index`: zero-based list index
+- `isDirectory`
+- `isFile`
 - `isImage`
 - `isMusic`
 - `isVideo`
@@ -114,10 +118,10 @@ Dynamic script variables:
 
 Metadata requirements:
 
-- Populate general file information from `System.IO.FileInfo`:
+- Populate general file/folder information from `System.IO.FileInfo` and `System.IO.DirectoryInfo`:
   - name, extension, fullName, path, sizeBytes, sizeText
   - creationDate, modifiedDate, accessedDate
-  - attributes, isReadOnly, isHidden, isSystem, isArchive
+  - attributes, isDirectory, isFile, isReadOnly, isHidden, isSystem, isArchive
 - Use MetadataExtractor for image/EXIF:
   - width, height
   - dpiX, dpiY
@@ -143,7 +147,7 @@ Rename safety:
   - `\ / : * ? " < > |`
 - Do not apply empty results.
 - Mark duplicate target names as invalid.
-- Mark existing target files as invalid/skipped.
+- Mark existing target files/folders as invalid/skipped.
 - Simulate must not change the file system.
 - Ask for confirmation before Apply.
 - Mark successfully applied rows as `Renamed`.
