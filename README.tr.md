@@ -1,6 +1,6 @@
 # Advanced Javascript Renamer
 
-Advanced Javascript Renamer, Windows 10 ve üzeri için hazırlanmış hafif bir WinForms dosya yeniden adlandırma aracıdır. Dosya adları Jint ile çalışan JavaScript kodlarıyla üretilir; resim, ses, video ve uygulama dosyalarından metadata okunabilir.
+Advanced Javascript Renamer, Windows 10 ve üzeri için hazırlanmış hafif bir WinForms dosya yeniden adlandırma aracıdır. Dosya adları Jint ile çalışan JavaScript kodlarıyla üretilir; resim, ses, video ve uygulama dosyalarından üst veri okunabilir.
 
 Proje ve çıktı adı bilerek korunmuştur:
 
@@ -11,34 +11,34 @@ Proje ve çıktı adı bilerek korunmuştur:
 
 ## Özellikler
 
-- JavaScript ile yeniden adlandırma: `substr`, `replace`, `indexOf`, regex ve modern JS string metodları kullanılabilir.
-- Static/Dynamic script yapısı:
-  - `Static` script işlem başında bir kez çalışır.
-  - `Dynamic` script listedeki her dosya için çalışır.
+- JavaScript ile yeniden adlandırma: `substr`, `replace`, `indexOf`, düzenli ifade ve modern JS metin metodları kullanılabilir.
+- Static/Dynamic betik yapısı:
+  - `Static` betiği işlem başında bir kez çalışır.
+  - `Dynamic` betiği listedeki her dosya için çalışır.
 - Simülasyon/önizleme: dosyalar değiştirilmeden yeni adlar listede görülebilir.
 - Uygula: geçerli önizleme sonuçları dosya sistemine uygulanır.
-- Son işlemi geri al: son başarılı Apply işlemi ters sırayla geri alınabilir.
-- Drag & drop: dosyalar ve klasörler listeye sürüklenebilir.
-- Metadata desteği:
+- Son işlemi geri al: son başarılı uygulama işlemi ters sırayla geri alınabilir.
+- Sürükle bırak: dosyalar ve klasörler listeye sürüklenebilir.
+- Üst veri desteği:
   - Genel dosya bilgileri `System.IO`
   - Resim/EXIF bilgileri `MetadataExtractor`
   - Ses/video bilgileri `TagLibSharp`
   - `.exe`/`.dll` sürüm ve imza bilgileri Windows API üzerinden
-- Windows Explorer context menu entegrasyonu: kullanıcı bazlı `HKCU\Software\Classes` altına yazar, admin gerektirmez.
-- Script template desteği: Static/Dynamic script çiftleri isim verilerek JSON dosyasına kaydedilebilir.
+- Windows Gezgini sağ tık menüsü entegrasyonu: kullanıcı bazlı `HKCU\Software\Classes` altına yazar, yönetici yetkisi gerektirmez.
+- Betik şablonu desteği: Static/Dynamic betik çiftleri isim verilerek JSON dosyasına kaydedilebilir.
 - İlk açılışta dil seçimi ve kalıcı UI dili. Desteklenen diller: İngilizce, Türkçe, Kazakistan Türkçesi, Azerbaycan Türkçesi ve Rusça.
 - Güvenlik: JS çıktısındaki Windows için geçersiz dosya adı karakterleri otomatik temizlenir.
 
 ## Gereksinimler
 
 - Windows 10 veya üzeri
-- .NET Framework 4.6.2 runtime
-- Build için Visual Studio 2022 veya .NET SDK/MSBuild
+- .NET Framework 4.6.2 çalışma zamanı
+- Derleme için Visual Studio 2022 veya .NET SDK/MSBuild
 - Node.js gerekmez
 
 ## NuGet Paketleri
 
-Proje `PackageReference` kullanır. Restore sırasında paketler otomatik iner:
+Proje `PackageReference` kullanır. Geri yükleme sırasında paketler otomatik iner:
 
 ```powershell
 dotnet restore .\advancedRenamer.csproj
@@ -52,13 +52,13 @@ Kullanılan paketler:
 
 ## Derleme
 
-Debug derleme:
+Hata ayıklama derlemesi:
 
 ```powershell
 dotnet build .\advancedRenamer.csproj
 ```
 
-Release derleme:
+Yayın derlemesi:
 
 ```powershell
 dotnet build .\advancedRenamer.csproj -c Release
@@ -67,9 +67,9 @@ dotnet build .\advancedRenamer.csproj -c Release
 Visual Studio ile:
 
 1. `advancedRenamer.sln` veya `advancedRenamer.csproj` dosyasını aç.
-2. NuGet restore işleminin tamamlanmasını bekle.
-3. Configuration olarak `Release` seç.
-4. Build al.
+2. NuGet paket geri yükleme işleminin tamamlanmasını bekle.
+3. Yapılandırma olarak `Release` seç.
+4. Projeyi derle.
 
 ## Çalıştırma
 
@@ -87,19 +87,19 @@ bin\Release\net462\advancedRenamer.exe
 
 Önemli: `obj` klasörü ara derleme klasörüdür. Uygulama normalde `obj\Release\net462` içinden çalıştırılmamalıdır. Uygulamayı tek başına başka yere kopyalarsan yanında `Jint.dll`, `MetadataExtractor.dll`, `TagLibSharp.dll` ve diğer bağımlılık DLL dosyaları da bulunmalıdır.
 
-Teknik not: Projede, yanlışlıkla `obj` içindeki ara exe çalıştırıldığında bağımlılık hatası azaltılsın diye runtime dependency DLL dosyalarını `obj` ara çıktı klasörüne de kopyalayan küçük bir MSBuild hedefi vardır. Bu bir dağıtım yöntemi değildir; gerçek çalıştırma ve dağıtım klasörü yine `bin\Release\net462` olmalıdır.
+Teknik not: Projede, yanlışlıkla `obj` içindeki ara exe çalıştırıldığında bağımlılık hatası azaltılsın diye çalışma zamanı bağımlılığı DLL dosyalarını `obj` ara çıktı klasörüne de kopyalayan küçük bir MSBuild hedefi vardır. Bu bir dağıtım yöntemi değildir; gerçek çalıştırma ve dağıtım klasörü yine `bin\Release\net462` olmalıdır.
 
 ## Proje Yapısı
 
 ```text
 advancedRenamer.csproj  Proje ve NuGet referansları
-advancedRenamer.sln     Visual Studio solution
-App.config              .NET Framework runtime config
-Form1.cs                Ana UI, script engine, metadata, rename/undo logic
+advancedRenamer.sln     Visual Studio çözüm dosyası
+App.config              .NET Framework çalışma zamanı yapılandırması
+Form1.cs                Ana arayüz, betik motoru, üst veri, yeniden adlandırma ve geri alma mantığı
 Localization.cs         İlk açılış dil seçimi ve UI metinleri
-Program.cs              Uygulama başlangıcı ve startup error logging
-RegistryHelper.cs       Explorer context menu ekle/kaldır logic
-.gitignore              Build/cache/runtime dosyalarını repodan dışlar
+Program.cs              Uygulama başlangıcı ve başlangıç hata kaydı
+RegistryHelper.cs       Windows Gezgini sağ tık menüsü ekleme/kaldırma mantığı
+.gitignore              Derleme, önbellek ve çalışma zamanı dosyalarını repodan dışlar
 README.md               Kullanım ve geliştirme dokümanı
 prompt.md               Projeyi yeniden oluşturmaya yarayan üretim prompt'u
 ```
@@ -112,29 +112,29 @@ obj/
 .vs/
 ```
 
-Bu klasörler build sırasında otomatik oluşur.
+Bu klasörler derleme sırasında otomatik oluşur.
 
 ## Kullanım Akışı
 
-1. `Add Files/Folders` ile dosya veya klasör ekle.
+1. `Dosya/Klasör Ekle` ile dosya veya klasör ekle.
 2. Gerekirse dosyaları listeye sürükle bırak.
-3. Static/Dynamic scriptleri düzenle veya template seç.
-4. `Simulate (Preview)` ile yeni adları kontrol et.
-5. Sonuç uygunsa `Apply Changes` ile dosyaları yeniden adlandır.
-6. Gerekirse `Undo Last` ile son başarılı Apply işlemini geri al.
+3. Static/Dynamic betiklerini düzenle veya şablon seç.
+4. `Simüle Et (Önizleme)` ile yeni adları kontrol et.
+5. Sonuç uygunsa `Değişiklikleri Uygula` ile dosyaları yeniden adlandır.
+6. Gerekirse `Geri Al` ile son başarılı uygulama işlemini geri al.
 
-Ana grid kolonları:
+Ana liste kolonları:
 
-- `Current Name`
-- `New Name`
-- `Path`
-- `Size`
-- `Type`
-- `Status`
+- `Mevcut Ad`
+- `Yeni Ad`
+- `Yol`
+- `Boyut`
+- `Tür`
+- `Durum`
 
-## Static ve Dynamic Script
+## Static ve Dynamic Betik
 
-`Static` script işlem başlamadan önce bir kez çalışır. Sabitler, sayaçlar ve yardımcı fonksiyonlar için uygundur:
+`Static` betiği işlem başlamadan önce bir kez çalışır. Sabitler, sayaçlar ve yardımcı fonksiyonlar için uygundur:
 
 ```javascript
 let counter = 0;
@@ -145,7 +145,7 @@ function nextName(ext) {
 }
 ```
 
-`Dynamic` script her dosya için çalışır ve yeni dosya adını string olarak döndürmelidir:
+`Dynamic` betiği her dosya için çalışır ve yeni dosya adını metin olarak döndürmelidir:
 
 ```javascript
 return nextName(ext);
@@ -161,7 +161,7 @@ Boş veya geçersiz sonuçlar uygulanmaz. Aynı hedef ad veya mevcut hedef dosya
 
 ## Kullanılabilir JS Değişkenleri
 
-Dosya başına Dynamic script içinde kullanılabilir:
+Dosya başına Dynamic betiği içinde kullanılabilir:
 
 ```text
 name        Uzantısız dosya adı
@@ -174,14 +174,14 @@ isVideo     Video dosyası mı
 isApp       .exe veya .dll mi
 size        Byte cinsinden dosya boyutu
 fullName    Tam dosya yolu
-created     JS Date
-modified    JS Date
-accessed    JS Date
-attributes  FileAttributes metni
-meta        Metadata nesnesi
+created     JS tarih nesnesi
+modified    JS tarih nesnesi
+accessed    JS tarih nesnesi
+attributes  Dosya öznitelikleri metni
+meta        Üst veri nesnesi
 ```
 
-## Metadata Alanları
+## Üst Veri Alanları
 
 Genel dosya alanları:
 
@@ -271,46 +271,46 @@ meta.signatureValid
 meta.publisher
 ```
 
-## Script Template'leri
+## Betik Şablonları
 
-Toolbar üzerinden Static/Dynamic script çiftleri isim verilerek kaydedilebilir.
+Araç çubuğu üzerinden Static/Dynamic betik çiftleri isim verilerek kaydedilebilir.
 
-Template dosyası exe'nin yanında tutulur:
+Şablon dosyası exe'nin yanında tutulur:
 
 ```text
 script-templates.json
 ```
 
-Bu dosya runtime kullanıcı verisi olduğu için `.gitignore` içindedir ve repoya commit edilmez.
+Bu dosya çalışma zamanı kullanıcı verisi olduğu için `.gitignore` içindedir ve repoya işlenmez.
 
 ## Dil Ayarı
 
-Uygulama ilk açılışta UI dilini sorar ve seçimi exe'nin yanındaki dosyada saklar:
+Uygulama ilk açılışta arayüz dilini sorar ve seçimi exe'nin yanındaki dosyada saklar:
 
 ```text
 language-settings.json
 ```
 
-Desteklenen diller İngilizce, Türkçe, Kazakistan Türkçesi, Azerbaycan Türkçesi ve Rusça'dır. Toolbar'daki dil seçimi UI dilini yeniden başlatmadan değiştirir; mevcut dosya/klasör listesi korunur. Uygulamanın tekrar dil sorması için `language-settings.json` dosyasını silmek yeterlidir.
+Desteklenen diller İngilizce, Türkçe, Kazakistan Türkçesi, Azerbaycan Türkçesi ve Rusça'dır. Araç çubuğundaki dil seçimi arayüz dilini yeniden başlatmadan değiştirir; mevcut dosya/klasör listesi korunur. Uygulamanın tekrar dil sorması için `language-settings.json` dosyasını silmek yeterlidir.
 
-## Explorer Context Menu
+## Windows Gezgini Sağ Tık Menüsü
 
-`Add to Context Menu` checkbox'ı şu registry konumlarını kullanıcı bazlı yönetir:
+`Sağ Tık Menüsüne Ekle` onay kutusu şu kayıt defteri konumlarını kullanıcı bazlı yönetir:
 
 ```text
 HKCU\Software\Classes\Directory\shell\advancedRenamer
 HKCU\Software\Classes\Directory\Background\shell\advancedRenamer
 ```
 
-Komut, checkbox işaretlendiği anda çalışan exe'nin tam yolunu kaydeder. Bu yüzden context menu için doğru yol isteniyorsa uygulamayı şu dosyadan açıp checkbox'ı kapat/aç yap:
+Komut, onay kutusu işaretlendiği anda çalışan exe'nin tam yolunu kaydeder. Bu yüzden sağ tık menüsü için doğru yol isteniyorsa uygulamayı şu dosyadan açıp onay kutusunu kapat/aç yap:
 
 ```text
 bin\Release\net462\advancedRenamer.exe
 ```
 
-## Hata Log'u
+## Hata Günlüğü
 
-Startup sırasında yakalanamayan hatalar exe klasörüne yazılır:
+Başlangıç sırasında yakalanamayan hatalar exe klasörüne yazılır:
 
 ```text
 advancedRenamer-error.log
@@ -330,7 +330,7 @@ bin\Release\net462\advancedRenamer.exe
 
 Exe başka yere taşınacaksa aynı klasörde bağımlılık DLL dosyaları da taşınmalıdır.
 
-### Release build dosyayı yazamıyor
+### Release derlemesi dosyayı yazamıyor
 
 `advancedRenamer.exe` açık olabilir. Uygulamayı kapatıp tekrar derle:
 
@@ -338,13 +338,13 @@ Exe başka yere taşınacaksa aynı klasörde bağımlılık DLL dosyaları da t
 dotnet build .\advancedRenamer.csproj -c Release
 ```
 
-### Context menu yanlış exe'yi açıyor
+### Sağ tık menüsü yanlış exe'yi açıyor
 
-Uygulamayı doğru Release klasöründen çalıştır, checkbox'ı kapatıp tekrar aç. Registry komutu yeni exe yoluyla güncellenir.
+Uygulamayı doğru Release klasöründen çalıştır, onay kutusunu kapatıp tekrar aç. Kayıt defteri komutu yeni exe yoluyla güncellenir.
 
 ## Git Notları
 
-Repoya kaynak dosyalar commit edilir. Şunlar commit edilmez:
+Kaynak dosyalar repoya işlenir. Şunlar işlenmez:
 
 ```text
 bin/
