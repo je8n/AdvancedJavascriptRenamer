@@ -29,17 +29,12 @@ Technical targets:
 UI requirements:
 
 - The main form title must be `Advanced Javascript Renamer`.
-- The top toolbar must include:
-  - `Add Files/Folders`
-  - `Simulate (Preview)`
-  - `Apply Changes`
-  - `Undo Last`
-  - a TextBox for the template name
-  - a ComboBox for selecting templates
-  - `Load Template`
-  - `Save Template`
-  - `Add to Context Menu` CheckBox
-  - a file count Label
+- The top toolbar must be grouped:
+  - item count group with the `* items` label
+  - file operations group: `Add Files/Folders`, `Simulate`, `Apply Changes`, `Undo Last`
+  - sort operations group: `Preview`, `Apply`, `Cancel`, `Load`, `Save`
+  - templates group: `Load`, `Save`
+  - settings group: `Add to Context Menu` CheckBox and language selector
 - The main grid must be a `ListView` in `Details` view with these columns:
   - Current Name
   - New Name
@@ -48,8 +43,9 @@ UI requirements:
   - Type
   - Status
 - Add a script editor section below the grid.
-- The script editor must be a `TabControl` with two tabs:
+- The script editor must be a `TabControl` with three tabs:
   - `Static`
+  - `Sort`
   - `Dynamic`
 - Both script editors must be multiline TextBoxes using a monospace font, accepting tabs, and showing scrollbars.
 - Add a variables guide panel on the right; it must be a read-only TextBox with a monospace font and a vertical scrollbar.
@@ -84,9 +80,15 @@ JavaScript execution model:
 
 - Execute JavaScript with Jint.
 - `Static` script must run once at the start of each Simulate/Apply operation.
+- `Sort` script must not run automatically before Dynamic. It must run only when the user clicks `Preview` in Sort Operations.
+- Sort `Preview` must temporarily reorder the list using the returned sort key for each item.
+- Sort `Apply` must keep the previewed order as the current list order.
+- Sort `Cancel` must restore the pre-preview order.
+- While a sort preview is active, block Add/Simulate/Apply/Undo/template loading until the user applies or cancels the sort preview.
 - `Dynamic` script must run once per file/folder row using the same Jint engine.
 - Variables, counters, constants, and helper functions defined in Static must be visible to Dynamic.
 - Dynamic must return the new file/folder name as a string.
+- Sort must return a numeric or string sort key.
 - Default Static script must include commented examples:
   - `let counter = 0;`
   - `const prefix = "file_";`
@@ -163,14 +165,15 @@ Undo:
 
 Template system:
 
-- Allow saving named Static/Dynamic script pairs.
-- The toolbar must have a template name TextBox, template ComboBox, `Load Template`, and `Save Template` buttons.
-- Selecting a template must load its contents into the editors.
+- Allow saving named Static/Dynamic script templates.
+- Sort templates must be saved and loaded separately from the normal Static/Dynamic templates.
+- Load/Save must open a small dialog where the user can select an existing template or type a new name.
 - Ask for overwrite confirmation when saving with an existing name.
-- Store templates as one JSON file beside the executable:
+- Store templates as JSON files beside the executable:
   - `script-templates.json`
+  - `sort-templates.json`
 - Do not add extra NuGet packages for JSON; use .NET Framework `DataContractJsonSerializer`.
-- Ignore `script-templates.json` in `.gitignore`.
+- Ignore `script-templates.json` and `sort-templates.json` in `.gitignore`.
 
 Build robustness:
 
@@ -210,5 +213,5 @@ Documentation:
 Git:
 
 - Add `.gitignore`.
-- Ignore `bin/`, `obj/`, `.vs/`, `script-templates.json`, `language-settings.json`, `advancedRenamer-error.log`, NuGet/cache/log files.
+- Ignore `bin/`, `obj/`, `.vs/`, `script-templates.json`, `sort-templates.json`, `language-settings.json`, `advancedRenamer-error.log`, NuGet/cache/log files.
 ```

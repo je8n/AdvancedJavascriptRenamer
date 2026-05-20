@@ -12,9 +12,10 @@ The project and output names are intentionally preserved:
 ## Features
 
 - JavaScript-based renaming with support for `substr`, `replace`, `indexOf`, regex, and modern JS string methods.
-- Static/Dynamic script model:
+- Static/Sort/Dynamic script model:
   - `Static` runs once at the start of an operation.
-  - `Dynamic` runs once for each file in the list.
+  - `Sort` runs only when `Preview` in the Sort Operations group is clicked and produces a temporary list order.
+  - `Dynamic` runs once for each item in the list.
 - Simulation/preview before touching the file system.
 - Apply valid preview results to the file system.
 - Undo the last successful Apply operation in reverse order.
@@ -25,7 +26,7 @@ The project and output names are intentionally preserved:
   - Audio/video data from `TagLibSharp`
   - `.exe`/`.dll` version and signature data from Windows APIs
 - Windows Explorer context menu integration under per-user `HKCU\Software\Classes`, with no admin rights required.
-- Script templates: save named Static/Dynamic script pairs to a JSON file.
+- Template support: Static/Dynamic templates and Sort templates are saved separately as named JSON entries.
 - First-run language selection with saved UI language. Supported languages: English, Turkish, Kazakhstan Turkish, Azerbaijani Turkish, and Russian.
 - Safety: invalid Windows filename characters returned by JS are sanitized automatically.
 
@@ -100,10 +101,9 @@ Localization.cs         First-run language selection and localized UI strings
 Program.cs              App startup and startup error logging
 RegistryHelper.cs       Explorer context menu install/remove logic
 .gitignore              Excludes build/cache/runtime files from Git
-README.md               Turkish usage and development documentation
-README.en.md            English usage and development documentation
-prompt.md               Turkish project generation prompt
-prompt.en.md            English project generation prompt
+README.md               English usage and development documentation
+README.tr.md            Turkish usage and development documentation
+prompt.md               Project generation prompt
 ```
 
 Folders that should not be committed:
@@ -120,10 +120,11 @@ These folders are generated automatically during build.
 
 1. Add files or folders with `Add Files/Folders`.
 2. Optionally drag and drop files into the list.
-3. Edit the Static/Dynamic scripts or select a template.
-4. Use `Simulate (Preview)` to inspect new names.
-5. Use `Apply Changes` if the preview is correct.
-6. Use `Undo Last` if you need to revert the last successful Apply operation.
+3. Edit the Static/Sort/Dynamic scripts or select a template.
+4. If needed, use `Preview` in Sort Operations to test list order; keep it with `Apply` or revert it with `Cancel`.
+5. Use `Simulate (Preview)` to inspect new names.
+6. Use `Apply Changes` if the preview is correct.
+7. Use `Undo Last` if you need to revert the last successful Apply operation.
 
 When a folder is added, only its direct files and direct child folders are added to the list. Child folder contents are not scanned recursively.
 
@@ -136,7 +137,7 @@ Main grid columns:
 - `Type`
 - `Status`
 
-## Static and Dynamic Scripts
+## Static, Sort, and Dynamic Scripts
 
 `Static` runs once before the operation starts. Use it for constants, counters, and helper functions:
 
@@ -147,6 +148,12 @@ const prefix = "file_";
 function nextName(ext) {
     return prefix + counter++.toString().padStart(3, "0") + ext;
 }
+```
+
+`Sort` does not run automatically during renaming. It runs once per item only when `Preview` in Sort Operations is clicked and must return a sort key. The preview is temporary; click `Apply` to keep that order:
+
+```javascript
+return (isDirectory ? "2_" : "1_") + name.toLowerCase();
 ```
 
 `Dynamic` runs once for each item and must return the new file/folder name as a string:
@@ -165,7 +172,7 @@ Empty or invalid results are not applied. Duplicate targets and existing target 
 
 ## Available JS Variables
 
-Available inside the per-file or per-folder Dynamic script:
+Available inside the per-file or per-folder Sort and Dynamic scripts:
 
 ```text
 name        Filename without extension; folder name for folders
@@ -281,12 +288,13 @@ meta.publisher
 
 ## Script Templates
 
-Named Static/Dynamic script pairs can be saved from the toolbar.
+The `Templates` group saves and loads Static/Dynamic scripts. The `Load`/`Save` buttons in Sort Operations manage only the Sort script.
 
-The template file is stored beside the executable:
+Template files are stored beside the executable:
 
 ```text
 script-templates.json
+sort-templates.json
 ```
 
 This is runtime user data, so it is ignored by Git.
@@ -359,6 +367,7 @@ bin/
 obj/
 .vs/
 script-templates.json
+sort-templates.json
 language-settings.json
 advancedRenamer-error.log
 ```

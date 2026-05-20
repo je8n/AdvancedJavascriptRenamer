@@ -21,18 +21,23 @@ namespace advancedRenamer
     {
         private const string AppDisplayName = "Advanced Javascript Renamer";
         private const string TemplateFileName = "script-templates.json";
+        private const string SortTemplateFileName = "sort-templates.json";
         private readonly List<FileEntry> _entries = new List<FileEntry>();
         private readonly List<RenameOperation> _lastRenameOperations = new List<RenameOperation>();
-        private bool _loadingTemplateList;
+        private List<FileEntry> _sortPreviewOriginalOrder;
         private ListView _listView;
         private TextBox _staticScriptTextBox;
+        private TextBox _sortScriptTextBox;
         private TextBox _dynamicScriptTextBox;
         private Button _addButton;
         private Button _simulateButton;
         private Button _applyButton;
         private Button _undoButton;
-        private TextBox _templateNameTextBox;
-        private ComboBox _templateComboBox;
+        private Button _previewSortButton;
+        private Button _applySortButton;
+        private Button _cancelSortButton;
+        private Button _loadSortTemplateButton;
+        private Button _saveSortTemplateButton;
         private Button _loadTemplateButton;
         private Button _saveTemplateButton;
         private CheckBox _contextMenuCheckBox;
@@ -42,9 +47,15 @@ namespace advancedRenamer
         private SplitContainer _mainSplit;
         private SplitContainer _editorSplit;
         private TabPage _staticTab;
+        private TabPage _sortTab;
         private TabPage _dynamicTab;
         private TextBox _guideTextBox;
         private bool _loadingLanguageList;
+        private GroupBox _itemCountGroup;
+        private GroupBox _fileOperationsGroup;
+        private GroupBox _sortOperationsGroup;
+        private GroupBox _templatesGroup;
+        private GroupBox _settingsGroup;
 
         public Form1() : this(new string[0])
         {
@@ -78,54 +89,66 @@ namespace advancedRenamer
                 ColumnCount = 1,
                 RowCount = 2
             };
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 46));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 88));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-            var toolbar = new FlowLayoutPanel
+            var toolbar = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                FlowDirection = FlowDirection.LeftToRight,
-                Padding = new Padding(8, 7, 8, 4),
-                WrapContents = false
+                ColumnCount = 5,
+                RowCount = 1,
+                Padding = new Padding(8, 6, 8, 4)
             };
+            toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            toolbar.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
             _addButton = new Button { Text = TextOf("AddFilesFolders"), AutoSize = true, Height = 28 };
             _simulateButton = new Button { Text = TextOf("SimulatePreview"), AutoSize = true, Height = 28 };
             _applyButton = new Button { Text = TextOf("ApplyChanges"), AutoSize = true, Height = 28 };
             _undoButton = new Button { Text = TextOf("UndoLast"), AutoSize = true, Height = 28, Enabled = false };
-            _templateNameTextBox = new TextBox { Width = 130, Height = 23, Margin = new Padding(18, 5, 3, 3) };
-            _templateComboBox = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 160, Height = 23, Margin = new Padding(3, 5, 3, 3) };
+            _previewSortButton = new Button { Text = TextOf("PreviewSort"), AutoSize = true, Height = 28 };
+            _applySortButton = new Button { Text = TextOf("ApplySort"), AutoSize = true, Height = 28, Enabled = false };
+            _cancelSortButton = new Button { Text = TextOf("CancelSort"), AutoSize = true, Height = 28, Enabled = false };
+            _loadSortTemplateButton = new Button { Text = TextOf("LoadSortTemplate"), AutoSize = true, Height = 28 };
+            _saveSortTemplateButton = new Button { Text = TextOf("SaveSortTemplate"), AutoSize = true, Height = 28 };
             _loadTemplateButton = new Button { Text = TextOf("LoadTemplate"), AutoSize = true, Height = 28 };
             _saveTemplateButton = new Button { Text = TextOf("SaveTemplate"), AutoSize = true, Height = 28 };
-            _contextMenuCheckBox = new CheckBox { Text = TextOf("AddToContextMenu"), AutoSize = true, Height = 28, Margin = new Padding(18, 6, 3, 3) };
-            _languageLabel = new Label { Text = TextOf("LanguageShortLabel"), AutoSize = true, Height = 28, TextAlign = ContentAlignment.MiddleLeft, Margin = new Padding(12, 8, 3, 3) };
+            _contextMenuCheckBox = new CheckBox { Text = TextOf("AddToContextMenu"), AutoSize = true, Height = 28, Margin = new Padding(3, 6, 3, 3) };
+            _languageLabel = new Label { Text = TextOf("LanguageShortLabel"), AutoSize = true, Height = 28, TextAlign = ContentAlignment.MiddleLeft, Margin = new Padding(3, 8, 3, 3) };
             _languageComboBox = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150, Height = 23, Margin = new Padding(3, 5, 3, 3) };
-            _countLabel = new Label { Text = FormatItemCount(0), AutoSize = true, Height = 28, TextAlign = ContentAlignment.MiddleLeft, Margin = new Padding(18, 8, 3, 3) };
+            _countLabel = new Label { Text = FormatItemCount(0), AutoSize = true, Height = 28, TextAlign = ContentAlignment.MiddleLeft, Margin = new Padding(3, 8, 3, 3) };
 
             _addButton.Click += AddButton_Click;
             _simulateButton.Click += SimulateButton_Click;
             _applyButton.Click += ApplyButton_Click;
             _undoButton.Click += UndoButton_Click;
+            _previewSortButton.Click += PreviewSortButton_Click;
+            _applySortButton.Click += ApplySortButton_Click;
+            _cancelSortButton.Click += CancelSortButton_Click;
+            _loadSortTemplateButton.Click += LoadSortTemplateButton_Click;
+            _saveSortTemplateButton.Click += SaveSortTemplateButton_Click;
             _loadTemplateButton.Click += LoadTemplateButton_Click;
             _saveTemplateButton.Click += SaveTemplateButton_Click;
-            _templateComboBox.SelectedIndexChanged += TemplateComboBox_SelectedIndexChanged;
             _contextMenuCheckBox.CheckedChanged += ContextMenuCheckBox_CheckedChanged;
             _contextMenuCheckBox.Checked = RegistryHelper.IsContextMenuInstalled();
             LoadLanguageComboBox();
             _languageComboBox.SelectedIndexChanged += LanguageComboBox_SelectedIndexChanged;
 
-            toolbar.Controls.Add(_addButton);
-            toolbar.Controls.Add(_simulateButton);
-            toolbar.Controls.Add(_applyButton);
-            toolbar.Controls.Add(_undoButton);
-            toolbar.Controls.Add(_templateNameTextBox);
-            toolbar.Controls.Add(_templateComboBox);
-            toolbar.Controls.Add(_loadTemplateButton);
-            toolbar.Controls.Add(_saveTemplateButton);
-            toolbar.Controls.Add(_contextMenuCheckBox);
-            toolbar.Controls.Add(_languageLabel);
-            toolbar.Controls.Add(_languageComboBox);
-            toolbar.Controls.Add(_countLabel);
+            _itemCountGroup = CreateToolbarGroup(TextOf("ItemCountGroupTitle"), _countLabel);
+            _fileOperationsGroup = CreateToolbarGroup(TextOf("FileOperationsGroupTitle"), _addButton, _simulateButton, _applyButton, _undoButton);
+            _sortOperationsGroup = CreateToolbarGroup(TextOf("SortOperationsGroupTitle"), _previewSortButton, _applySortButton, _cancelSortButton, _loadSortTemplateButton, _saveSortTemplateButton);
+            _templatesGroup = CreateToolbarGroup(TextOf("TemplatesGroupTitle"), _loadTemplateButton, _saveTemplateButton);
+            _settingsGroup = CreateToolbarGroup(TextOf("SettingsGroupTitle"), _contextMenuCheckBox, _languageLabel, _languageComboBox);
+
+            toolbar.Controls.Add(_itemCountGroup, 0, 0);
+            toolbar.Controls.Add(_fileOperationsGroup, 1, 0);
+            toolbar.Controls.Add(_sortOperationsGroup, 2, 0);
+            toolbar.Controls.Add(_templatesGroup, 3, 0);
+            toolbar.Controls.Add(_settingsGroup, 4, 0);
 
             _mainSplit = new SplitContainer
             {
@@ -159,13 +182,17 @@ namespace advancedRenamer
 
             var scriptTabs = new TabControl { Dock = DockStyle.Fill };
             _staticTab = new TabPage(TextOf("StaticTab"));
+            _sortTab = new TabPage(TextOf("SortTab"));
             _dynamicTab = new TabPage(TextOf("DynamicTab"));
 
             _staticScriptTextBox = CreateScriptTextBox(GetDefaultStaticScript());
+            _sortScriptTextBox = CreateScriptTextBox(GetDefaultSortScript());
             _dynamicScriptTextBox = CreateScriptTextBox(GetDefaultDynamicScript());
             _staticTab.Controls.Add(_staticScriptTextBox);
+            _sortTab.Controls.Add(_sortScriptTextBox);
             _dynamicTab.Controls.Add(_dynamicScriptTextBox);
             scriptTabs.TabPages.Add(_staticTab);
+            scriptTabs.TabPages.Add(_sortTab);
             scriptTabs.TabPages.Add(_dynamicTab);
 
             _guideTextBox = new TextBox
@@ -189,7 +216,6 @@ namespace advancedRenamer
             root.Controls.Add(toolbar, 0, 0);
             root.Controls.Add(_mainSplit, 0, 1);
             Controls.Add(root);
-            RefreshTemplateList(selectName: null);
         }
 
         private void Form1_Shown(object sender, EventArgs e)
@@ -228,6 +254,38 @@ namespace advancedRenamer
             splitContainer.SplitterDistance = Math.Min(Math.Max(requestedDistance, splitContainer.Panel1MinSize), maxDistance);
         }
 
+        private static GroupBox CreateToolbarGroup(string title, params Control[] controls)
+        {
+            var group = new GroupBox
+            {
+                Text = title,
+                Dock = DockStyle.Fill,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Margin = new Padding(3, 0, 6, 0),
+                Padding = new Padding(8, 15, 8, 6)
+            };
+
+            var panel = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false,
+                Margin = Padding.Empty,
+                Padding = Padding.Empty
+            };
+
+            foreach (Control control in controls)
+            {
+                panel.Controls.Add(control);
+            }
+
+            group.Controls.Add(panel);
+            return group;
+        }
+
         private static TextBox CreateScriptTextBox(string text)
         {
             return new TextBox
@@ -263,6 +321,11 @@ namespace advancedRenamer
             return TextOf("DefaultStaticScript");
         }
 
+        private static string GetDefaultSortScript()
+        {
+            return TextOf("DefaultSortScript");
+        }
+
         private static string GetDefaultDynamicScript()
         {
             return TextOf("DefaultDynamicScript");
@@ -275,6 +338,11 @@ namespace advancedRenamer
 
         private void AddButton_Click(object sender, EventArgs e)
         {
+            if (!EnsureNoSortPreview())
+            {
+                return;
+            }
+
             using (var openDialog = new OpenFileDialog())
             {
                 openDialog.Title = TextOf("AddFilesTitle");
@@ -299,15 +367,24 @@ namespace advancedRenamer
 
         private void SimulateButton_Click(object sender, EventArgs e)
         {
+            if (!EnsureNoSortPreview())
+            {
+                return;
+            }
+
             SimulateRenames(showMessage: true);
         }
 
         private void LoadTemplateButton_Click(object sender, EventArgs e)
         {
-            string name = Convert.ToString(_templateComboBox.SelectedItem, CultureInfo.InvariantCulture);
+            if (!EnsureNoSortPreview())
+            {
+                return;
+            }
+
+            string name = PromptTemplateName(TextOf("LoadTemplateDialogTitle"), TextOf("TemplateDialogPrompt"), LoadTemplates().Select(x => x.Name));
             if (string.IsNullOrWhiteSpace(name))
             {
-                MessageBox.Show(this, TextOf("TemplateNotSelected"), AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
@@ -316,12 +393,7 @@ namespace advancedRenamer
 
         private void SaveTemplateButton_Click(object sender, EventArgs e)
         {
-            string name = _templateNameTextBox.Text.Trim();
-            if (string.IsNullOrWhiteSpace(name))
-            {
-                name = Convert.ToString(_templateComboBox.SelectedItem, CultureInfo.InvariantCulture);
-            }
-
+            string name = PromptTemplateName(TextOf("SaveTemplateDialogTitle"), TextOf("TemplateDialogPrompt"), LoadTemplates().Select(x => x.Name));
             if (string.IsNullOrWhiteSpace(name))
             {
                 MessageBox.Show(this, TextOf("TemplateNameRequired"), AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -355,7 +427,6 @@ namespace advancedRenamer
                 }
 
                 SaveTemplates(templates);
-                RefreshTemplateList(name);
                 MessageBox.Show(this, TextOf("TemplateSaved"), AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
@@ -364,17 +435,61 @@ namespace advancedRenamer
             }
         }
 
-        private void TemplateComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        private void LoadSortTemplateButton_Click(object sender, EventArgs e)
         {
-            if (_loadingTemplateList)
+            if (!EnsureNoSortPreview())
             {
                 return;
             }
 
-            string name = Convert.ToString(_templateComboBox.SelectedItem, CultureInfo.InvariantCulture);
-            if (!string.IsNullOrWhiteSpace(name))
+            string name = PromptTemplateName(TextOf("LoadSortTemplateDialogTitle"), TextOf("SortTemplateDialogPrompt"), LoadSortTemplates().Select(x => x.Name));
+            if (string.IsNullOrWhiteSpace(name))
             {
-                LoadTemplateIntoEditor(name);
+                return;
+            }
+
+            LoadSortTemplateIntoEditor(name);
+        }
+
+        private void SaveSortTemplateButton_Click(object sender, EventArgs e)
+        {
+            string name = PromptTemplateName(TextOf("SaveSortTemplateDialogTitle"), TextOf("SortTemplateDialogPrompt"), LoadSortTemplates().Select(x => x.Name));
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                MessageBox.Show(this, TextOf("TemplateNameRequired"), AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            try
+            {
+                List<SortScriptTemplate> templates = LoadSortTemplates();
+                SortScriptTemplate existing = templates.FirstOrDefault(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
+
+                if (existing != null)
+                {
+                    if (MessageBox.Show(this, FormatText("OverwriteTemplate", existing.Name), TextOf("SaveSortTemplate"), MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+                    {
+                        return;
+                    }
+
+                    existing.Name = name;
+                    existing.SortScript = _sortScriptTextBox.Text;
+                }
+                else
+                {
+                    templates.Add(new SortScriptTemplate
+                    {
+                        Name = name,
+                        SortScript = _sortScriptTextBox.Text
+                    });
+                }
+
+                SaveSortTemplates(templates);
+                MessageBox.Show(this, TextOf("TemplateSaved"), AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, ex.Message, TextOf("TemplateSaveErrorTitle"), MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -432,11 +547,22 @@ namespace advancedRenamer
             _simulateButton.Text = TextOf("SimulatePreview");
             _applyButton.Text = TextOf("ApplyChanges");
             _undoButton.Text = TextOf("UndoLast");
+            _previewSortButton.Text = TextOf("PreviewSort");
+            _applySortButton.Text = TextOf("ApplySort");
+            _cancelSortButton.Text = TextOf("CancelSort");
+            _loadSortTemplateButton.Text = TextOf("LoadSortTemplate");
+            _saveSortTemplateButton.Text = TextOf("SaveSortTemplate");
             _loadTemplateButton.Text = TextOf("LoadTemplate");
             _saveTemplateButton.Text = TextOf("SaveTemplate");
             _contextMenuCheckBox.Text = TextOf("AddToContextMenu");
             _languageLabel.Text = TextOf("LanguageShortLabel");
             _countLabel.Text = FormatItemCount(_entries.Count);
+
+            _itemCountGroup.Text = TextOf("ItemCountGroupTitle");
+            _fileOperationsGroup.Text = TextOf("FileOperationsGroupTitle");
+            _sortOperationsGroup.Text = TextOf("SortOperationsGroupTitle");
+            _templatesGroup.Text = TextOf("TemplatesGroupTitle");
+            _settingsGroup.Text = TextOf("SettingsGroupTitle");
 
             if (_listView.Columns.Count >= 6)
             {
@@ -451,6 +577,11 @@ namespace advancedRenamer
             if (_staticTab != null)
             {
                 _staticTab.Text = TextOf("StaticTab");
+            }
+
+            if (_sortTab != null)
+            {
+                _sortTab.Text = TextOf("SortTab");
             }
 
             if (_dynamicTab != null)
@@ -478,8 +609,133 @@ namespace advancedRenamer
             }
         }
 
+        private void PreviewSortButton_Click(object sender, EventArgs e)
+        {
+            PreviewSort();
+        }
+
+        private void ApplySortButton_Click(object sender, EventArgs e)
+        {
+            if (!IsSortPreviewActive)
+            {
+                return;
+            }
+
+            _sortPreviewOriginalOrder = null;
+            UpdateSortPreviewButtons();
+        }
+
+        private void CancelSortButton_Click(object sender, EventArgs e)
+        {
+            CancelSortPreview();
+        }
+
+        private void PreviewSort()
+        {
+            if (_entries.Count == 0)
+            {
+                return;
+            }
+
+            if (IsSortPreviewActive)
+            {
+                RestoreSortPreviewOriginalOrder();
+            }
+
+            _sortPreviewOriginalOrder = new List<FileEntry>(_entries);
+
+            try
+            {
+                var sortItems = new List<SortItem>();
+                Engine engine = CreateScriptEngine();
+                string sortScript = _sortScriptTextBox.Text;
+
+                for (int i = 0; i < _entries.Count; i++)
+                {
+                    FileEntry entry = _entries[i];
+                    object sortKey = ExecuteSortScript(engine, sortScript, entry, i);
+                    sortItems.Add(new SortItem(entry, sortKey, i));
+                }
+
+                _entries.Clear();
+                _entries.AddRange(sortItems
+                    .OrderBy(x => x.Key, SortKeyComparer.Instance)
+                    .ThenBy(x => x.OriginalIndex)
+                    .Select(x => x.Entry));
+
+                RefreshListView();
+                UpdateSortPreviewButtons();
+            }
+            catch (JavaScriptException ex)
+            {
+                RestoreSortPreviewOriginalOrder();
+                RefreshListView();
+                UpdateSortPreviewButtons();
+                MessageBox.Show(this, ex.Message, TextOf("SortErrorTitle"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            catch (Exception ex)
+            {
+                RestoreSortPreviewOriginalOrder();
+                RefreshListView();
+                UpdateSortPreviewButtons();
+                MessageBox.Show(this, ex.Message, TextOf("SortErrorTitle"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private bool EnsureNoSortPreview()
+        {
+            if (!IsSortPreviewActive)
+            {
+                return true;
+            }
+
+            MessageBox.Show(this, TextOf("SortPreviewActiveMessage"), AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return false;
+        }
+
+        private bool IsSortPreviewActive
+        {
+            get { return _sortPreviewOriginalOrder != null; }
+        }
+
+        private void CancelSortPreview()
+        {
+            if (!IsSortPreviewActive)
+            {
+                return;
+            }
+
+            RestoreSortPreviewOriginalOrder();
+            RefreshListView();
+            UpdateSortPreviewButtons();
+        }
+
+        private void RestoreSortPreviewOriginalOrder()
+        {
+            if (_sortPreviewOriginalOrder == null)
+            {
+                return;
+            }
+
+            _entries.Clear();
+            _entries.AddRange(_sortPreviewOriginalOrder);
+            _sortPreviewOriginalOrder = null;
+        }
+
+        private void UpdateSortPreviewButtons()
+        {
+            bool isPreviewActive = IsSortPreviewActive;
+            _applySortButton.Enabled = isPreviewActive;
+            _cancelSortButton.Enabled = isPreviewActive;
+        }
+
         private void ApplyButton_Click(object sender, EventArgs e)
         {
+            if (!EnsureNoSortPreview())
+            {
+                return;
+            }
+
             SimulateRenames(showMessage: false);
 
             var ready = _entries.Where(x => x.Status == "Ready" && !string.IsNullOrWhiteSpace(x.NewName)).ToList();
@@ -530,6 +786,11 @@ namespace advancedRenamer
 
         private void UndoButton_Click(object sender, EventArgs e)
         {
+            if (!EnsureNoSortPreview())
+            {
+                return;
+            }
+
             if (_lastRenameOperations.Count == 0)
             {
                 MessageBox.Show(this, TextOf("UndoNoOperation"), AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -691,11 +952,9 @@ namespace advancedRenamer
                 if (template == null)
                 {
                     MessageBox.Show(this, TextOf("TemplateMissing"), AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    RefreshTemplateList(selectName: null);
                     return;
                 }
 
-                _templateNameTextBox.Text = template.Name;
                 _staticScriptTextBox.Text = template.StaticScript ?? string.Empty;
                 _dynamicScriptTextBox.Text = template.DynamicScript ?? string.Empty;
             }
@@ -705,40 +964,30 @@ namespace advancedRenamer
             }
         }
 
-        private void RefreshTemplateList(string selectName)
+        private void LoadSortTemplateIntoEditor(string name)
         {
             try
             {
-                _loadingTemplateList = true;
-                _templateComboBox.Items.Clear();
-
-                foreach (ScriptTemplate template in LoadTemplates().OrderBy(x => x.Name, StringComparer.CurrentCultureIgnoreCase))
+                SortScriptTemplate template = LoadSortTemplates().FirstOrDefault(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
+                if (template == null)
                 {
-                    if (!string.IsNullOrWhiteSpace(template.Name))
-                    {
-                        _templateComboBox.Items.Add(template.Name);
-                    }
+                    MessageBox.Show(this, TextOf("TemplateMissing"), AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
                 }
 
-                if (!string.IsNullOrWhiteSpace(selectName))
-                {
-                    for (int i = 0; i < _templateComboBox.Items.Count; i++)
-                    {
-                        if (string.Equals(Convert.ToString(_templateComboBox.Items[i], CultureInfo.InvariantCulture), selectName, StringComparison.OrdinalIgnoreCase))
-                        {
-                            _templateComboBox.SelectedIndex = i;
-                            break;
-                        }
-                    }
-                }
+                _sortScriptTextBox.Text = string.IsNullOrWhiteSpace(template.SortScript) ? GetDefaultSortScript() : template.SortScript;
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this, ex.Message, TextOf("TemplateListErrorTitle"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(this, ex.Message, TextOf("TemplateLoadErrorTitle"), MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-            finally
+        }
+
+        private string PromptTemplateName(string title, string prompt, IEnumerable<string> names)
+        {
+            using (var dialog = new TemplateNameDialog(title, prompt, names))
             {
-                _loadingTemplateList = false;
+                return dialog.ShowDialog(this) == DialogResult.OK ? dialog.TemplateName : null;
             }
         }
 
@@ -780,9 +1029,52 @@ namespace advancedRenamer
             }
         }
 
+        private static List<SortScriptTemplate> LoadSortTemplates()
+        {
+            string path = GetSortTemplateFilePath();
+            if (!File.Exists(path))
+            {
+                return new List<SortScriptTemplate>();
+            }
+
+            using (FileStream stream = File.OpenRead(path))
+            {
+                if (stream.Length == 0)
+                {
+                    return new List<SortScriptTemplate>();
+                }
+
+                var serializer = new DataContractJsonSerializer(typeof(SortScriptTemplateStore));
+                var store = serializer.ReadObject(stream) as SortScriptTemplateStore;
+                return store == null || store.Templates == null ? new List<SortScriptTemplate>() : store.Templates;
+            }
+        }
+
+        private static void SaveSortTemplates(List<SortScriptTemplate> templates)
+        {
+            var store = new SortScriptTemplateStore
+            {
+                Templates = templates
+                    .Where(x => x != null && !string.IsNullOrWhiteSpace(x.Name))
+                    .OrderBy(x => x.Name, StringComparer.CurrentCultureIgnoreCase)
+                    .ToList()
+            };
+
+            using (FileStream stream = File.Create(GetSortTemplateFilePath()))
+            {
+                var serializer = new DataContractJsonSerializer(typeof(SortScriptTemplateStore));
+                serializer.WriteObject(stream, store);
+            }
+        }
+
         private static string GetTemplateFilePath()
         {
             return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, TemplateFileName);
+        }
+
+        private static string GetSortTemplateFilePath()
+        {
+            return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, SortTemplateFileName);
         }
 
         private void Form_DragEnter(object sender, DragEventArgs e)
@@ -806,6 +1098,11 @@ namespace advancedRenamer
 
         private void AddPaths(IEnumerable<string> paths)
         {
+            if (!EnsureNoSortPreview())
+            {
+                return;
+            }
+
             var items = new List<EntryCandidate>();
             foreach (string inputPath in paths.Where(x => !string.IsNullOrWhiteSpace(x)))
             {
@@ -1017,6 +1314,14 @@ namespace advancedRenamer
             string wrappedScript = "(function(){\r\n" + script + "\r\n})()";
             object value = engine.Evaluate(wrappedScript).ToObject();
             return Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty;
+        }
+
+        private static object ExecuteSortScript(Engine engine, string script, FileEntry entry, int index)
+        {
+            SetEntryVariables(engine, entry, index);
+
+            string wrappedScript = "(function(){\r\n" + script + "\r\n})()";
+            return engine.Evaluate(wrappedScript).ToObject();
         }
 
         private static void SetEntryVariables(Engine engine, FileEntry entry, int index)
@@ -1410,6 +1715,51 @@ namespace advancedRenamer
             public bool IsDirectory { get; private set; }
         }
 
+        private sealed class SortItem
+        {
+            public SortItem(FileEntry entry, object key, int originalIndex)
+            {
+                Entry = entry;
+                Key = key;
+                OriginalIndex = originalIndex;
+            }
+
+            public FileEntry Entry { get; private set; }
+            public object Key { get; private set; }
+            public int OriginalIndex { get; private set; }
+        }
+
+        private sealed class SortKeyComparer : IComparer<object>
+        {
+            public static readonly SortKeyComparer Instance = new SortKeyComparer();
+
+            public int Compare(object x, object y)
+            {
+                bool xIsNumber = IsNumber(x);
+                bool yIsNumber = IsNumber(y);
+
+                if (xIsNumber && yIsNumber)
+                {
+                    return Convert.ToDouble(x, CultureInfo.InvariantCulture).CompareTo(Convert.ToDouble(y, CultureInfo.InvariantCulture));
+                }
+
+                return string.Compare(
+                    Convert.ToString(x, CultureInfo.CurrentCulture) ?? string.Empty,
+                    Convert.ToString(y, CultureInfo.CurrentCulture) ?? string.Empty,
+                    StringComparison.CurrentCultureIgnoreCase);
+            }
+
+            private static bool IsNumber(object value)
+            {
+                return value is byte || value is sbyte ||
+                       value is short || value is ushort ||
+                       value is int || value is uint ||
+                       value is long || value is ulong ||
+                       value is float || value is double ||
+                       value is decimal;
+            }
+        }
+
         [DataContract]
         private sealed class ScriptTemplateStore
         {
@@ -1428,6 +1778,98 @@ namespace advancedRenamer
 
             [DataMember(Name = "dynamicScript")]
             public string DynamicScript { get; set; } = string.Empty;
+        }
+
+        [DataContract]
+        private sealed class SortScriptTemplateStore
+        {
+            [DataMember(Name = "templates")]
+            public List<SortScriptTemplate> Templates { get; set; } = new List<SortScriptTemplate>();
+        }
+
+        [DataContract]
+        private sealed class SortScriptTemplate
+        {
+            [DataMember(Name = "name")]
+            public string Name { get; set; } = string.Empty;
+
+            [DataMember(Name = "sortScript")]
+            public string SortScript { get; set; } = string.Empty;
+        }
+
+        private sealed class TemplateNameDialog : Form
+        {
+            private readonly ComboBox _nameComboBox;
+
+            public TemplateNameDialog(string title, string prompt, IEnumerable<string> names)
+            {
+                Text = title;
+                StartPosition = FormStartPosition.CenterParent;
+                FormBorderStyle = FormBorderStyle.FixedDialog;
+                MinimizeBox = false;
+                MaximizeBox = false;
+                ClientSize = new Size(360, 132);
+
+                var label = new Label
+                {
+                    Text = prompt,
+                    AutoSize = false,
+                    Left = 16,
+                    Top = 16,
+                    Width = 328,
+                    Height = 24
+                };
+
+                _nameComboBox = new ComboBox
+                {
+                    DropDownStyle = ComboBoxStyle.DropDown,
+                    Left = 16,
+                    Top = 48,
+                    Width = 328
+                };
+
+                foreach (string name in names.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.CurrentCultureIgnoreCase))
+                {
+                    _nameComboBox.Items.Add(name);
+                }
+
+                if (_nameComboBox.Items.Count > 0)
+                {
+                    _nameComboBox.SelectedIndex = 0;
+                }
+
+                var okButton = new Button
+                {
+                    Text = TextOf("DialogOk"),
+                    DialogResult = DialogResult.OK,
+                    Left = 138,
+                    Top = 88,
+                    Width = 100,
+                    Height = 28
+                };
+
+                var cancelButton = new Button
+                {
+                    Text = TextOf("DialogCancel"),
+                    DialogResult = DialogResult.Cancel,
+                    Left = 244,
+                    Top = 88,
+                    Width = 100,
+                    Height = 28
+                };
+
+                AcceptButton = okButton;
+                CancelButton = cancelButton;
+                Controls.Add(label);
+                Controls.Add(_nameComboBox);
+                Controls.Add(okButton);
+                Controls.Add(cancelButton);
+            }
+
+            public string TemplateName
+            {
+                get { return Convert.ToString(_nameComboBox.Text, CultureInfo.CurrentCulture).Trim(); }
+            }
         }
     }
 

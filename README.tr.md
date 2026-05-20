@@ -12,9 +12,10 @@ Proje ve çıktı adı bilerek korunmuştur:
 ## Özellikler
 
 - JavaScript ile yeniden adlandırma: `substr`, `replace`, `indexOf`, düzenli ifade ve modern JS metin metodları kullanılabilir.
-- Static/Dynamic betik yapısı:
+- Static/Sort/Dynamic betik yapısı:
   - `Static` betiği işlem başında bir kez çalışır.
-  - `Dynamic` betiği listedeki her dosya için çalışır.
+  - `Sort` betiği yalnızca Sıralama İşlemleri altındaki `Önizle` tıklandığında geçici liste sırası üretir.
+  - `Dynamic` betiği listedeki her öğe için çalışır.
 - Simülasyon/önizleme: dosyalar değiştirilmeden yeni adlar listede görülebilir.
 - Uygula: geçerli önizleme sonuçları dosya sistemine uygulanır.
 - Son işlemi geri al: son başarılı uygulama işlemi ters sırayla geri alınabilir.
@@ -25,7 +26,7 @@ Proje ve çıktı adı bilerek korunmuştur:
   - Ses/video bilgileri `TagLibSharp`
   - `.exe`/`.dll` sürüm ve imza bilgileri Windows API üzerinden
 - Windows Gezgini sağ tık menüsü entegrasyonu: kullanıcı bazlı `HKCU\Software\Classes` altına yazar, yönetici yetkisi gerektirmez.
-- Betik şablonu desteği: Static/Dynamic betik çiftleri isim verilerek JSON dosyasına kaydedilebilir.
+- Taslak desteği: Static/Dynamic taslakları ve Sort taslakları ayrı ayrı isim verilerek JSON dosyasına kaydedilebilir.
 - İlk açılışta dil seçimi ve kalıcı UI dili. Desteklenen diller: İngilizce, Türkçe, Kazakistan Türkçesi, Azerbaycan Türkçesi ve Rusça.
 - Güvenlik: JS çıktısındaki Windows için geçersiz dosya adı karakterleri otomatik temizlenir.
 
@@ -100,7 +101,8 @@ Localization.cs         İlk açılış dil seçimi ve UI metinleri
 Program.cs              Uygulama başlangıcı ve başlangıç hata kaydı
 RegistryHelper.cs       Windows Gezgini sağ tık menüsü ekleme/kaldırma mantığı
 .gitignore              Derleme, önbellek ve çalışma zamanı dosyalarını repodan dışlar
-README.md               Kullanım ve geliştirme dokümanı
+README.md               İngilizce kullanım ve geliştirme dokümanı
+README.tr.md            Türkçe kullanım ve geliştirme dokümanı
 prompt.md               Projeyi yeniden oluşturmaya yarayan üretim prompt'u
 ```
 
@@ -118,10 +120,11 @@ Bu klasörler derleme sırasında otomatik oluşur.
 
 1. `Dosya/Klasör Ekle` ile dosya veya klasör ekle.
 2. Gerekirse dosyaları listeye sürükle bırak.
-3. Static/Dynamic betiklerini düzenle veya şablon seç.
-4. `Simüle Et (Önizleme)` ile yeni adları kontrol et.
-5. Sonuç uygunsa `Değişiklikleri Uygula` ile dosyaları yeniden adlandır.
-6. Gerekirse `Geri Al` ile son başarılı uygulama işlemini geri al.
+3. Static/Sort/Dynamic betiklerini düzenle veya taslak seç.
+4. Gerekirse Sıralama İşlemleri altındaki `Önizle` ile liste sırasını dene; doğruysa `Uygula`, değilse `İptal Et`.
+5. `Simüle Et (Önizleme)` ile yeni adları kontrol et.
+6. Sonuç uygunsa `Değişiklikleri Uygula` ile dosyaları yeniden adlandır.
+7. Gerekirse `Geri Al` ile son başarılı uygulama işlemini geri al.
 
 Ana liste kolonları:
 
@@ -134,7 +137,7 @@ Ana liste kolonları:
 
 Klasör eklendiğinde yalnızca o klasörün doğrudan içindeki dosyalar ve alt klasörler listeye alınır. Alt klasörlerin içi taranmaz.
 
-## Static ve Dynamic Betik
+## Static, Sort ve Dynamic Betik
 
 `Static` betiği işlem başlamadan önce bir kez çalışır. Sabitler, sayaçlar ve yardımcı fonksiyonlar için uygundur:
 
@@ -145,6 +148,12 @@ const prefix = "file_";
 function nextName(ext) {
     return prefix + counter++.toString().padStart(3, "0") + ext;
 }
+```
+
+`Sort` betiği yeniden adlandırma sırasında otomatik çalışmaz. Yalnızca Sıralama İşlemleri altındaki `Önizle` tıklandığında her öğe için çalışır ve sıralama anahtarı döndürür. Önizleme geçicidir; kalıcı liste sırası için `Uygula` tıklanmalıdır:
+
+```javascript
+return (isDirectory ? "2_" : "1_") + name.toLowerCase();
 ```
 
 `Dynamic` betiği her öğe için çalışır ve yeni dosya/klasör adını metin olarak döndürmelidir:
@@ -163,7 +172,7 @@ Boş veya geçersiz sonuçlar uygulanmaz. Aynı hedef ad veya mevcut hedef dosya
 
 ## Kullanılabilir JS Değişkenleri
 
-Dosya veya klasör başına Dynamic betiği içinde kullanılabilir:
+Dosya veya klasör başına Sort ve Dynamic betikleri içinde kullanılabilir:
 
 ```text
 name        Uzantısız dosya adı; klasörlerde klasör adı
@@ -277,14 +286,15 @@ meta.signatureValid
 meta.publisher
 ```
 
-## Betik Şablonları
+## Taslaklar
 
-Araç çubuğu üzerinden Static/Dynamic betik çiftleri isim verilerek kaydedilebilir.
+Araç çubuğundaki `Taslaklar` grubu Static/Dynamic betiklerini kaydeder ve okur. Sıralama İşlemleri grubundaki `Oku`/`Kaydet` butonları yalnızca Sort betiğini yönetir.
 
-Şablon dosyası exe'nin yanında tutulur:
+Taslak dosyaları exe'nin yanında tutulur:
 
 ```text
 script-templates.json
+sort-templates.json
 ```
 
 Bu dosya çalışma zamanı kullanıcı verisi olduğu için `.gitignore` içindedir ve repoya işlenmez.
@@ -357,6 +367,7 @@ bin/
 obj/
 .vs/
 script-templates.json
+sort-templates.json
 language-settings.json
 advancedRenamer-error.log
 ```
